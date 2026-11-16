@@ -192,6 +192,23 @@ button, input, select, textarea { font-family: inherit; }
 .hist-tabs button.on { background:#1f3a5f; color:#fff; border-color:#1f3a5f; }
 .hist-json { white-space:pre-wrap; word-break:break-all; font-family:Consolas,Monaco,monospace; font-size:11px; background:#fbfcfe; border:1px solid #e6eaf0; border-radius:5px; padding:10px; max-height:58vh; overflow:auto; line-height:1.6; }
 .hist-empty { color:#8a94a3; font-size:12px; padding:20px 4px; }
+/* ===== 账号管理 + 委托模块 ===== */
+.acct-item { display:flex; align-items:center; gap:8px; border:1px solid #e6eaf0; border-radius:6px; padding:8px 10px; margin-bottom:7px; }
+.acct-item .nm { flex:1; font-size:13px; color:#1f3a5f; font-weight:500; }
+.acct-item .admin-tag { font-size:10px; padding:1px 7px; border-radius:9px; background:#fef3e0; color:#a86400; margin-left:6px; }
+.acct-item input { width:120px; padding:6px 8px; border:1px solid #d5dce5; border-radius:4px; font-size:12px; }
+.comm-item { border:1px solid #e0e6ee; border-radius:6px; padding:9px 11px; margin-bottom:7px; cursor:pointer; background:#fff; }
+.comm-item:hover { background:#f6f9fd; }
+.comm-item.on { border-color:#1f3a5f; background:#eef4fb; }
+.comm-item .t { font-size:12.5px; color:#1f3a5f; font-weight:500; }
+.comm-item .s { font-size:11px; color:#8a94a3; margin-top:3px; }
+.comm-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+.comm-f label { display:block; font-size:11.5px; color:#4a5b72; margin-bottom:4px; }
+.comm-f input, .comm-f textarea, .comm-f select { width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid #d5dce5; border-radius:4px; font-size:12px; }
+.comm-f textarea { min-height:52px; resize:vertical; }
+.comm-sec-t { font-size:12.5px; font-weight:500; color:#1f3a5f; margin:16px 0 8px; border-bottom:1px solid #e6eaf0; padding-bottom:5px; }
+.samp-card { border:1px solid #e0e6ee; border-radius:6px; padding:10px 12px; margin-bottom:10px; background:#fbfcfe; }
+.samp-hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; font-size:12px; color:#1f3a5f; font-weight:500; }
 </style>
 </head>
 <body>
@@ -208,8 +225,10 @@ button, input, select, textarea { font-family: inherit; }
     <button class="tb-btn" id="btnBackup">备份</button>
     <button class="tb-btn" id="btnRestore">恢复</button>
     <button class="tb-btn primary" id="btnCapture">拍照 / 导入数据</button>
+    <button class="tb-btn primary" id="btnCommission">委托管理</button>
     <span class="tb-spacer"></span>
     <span class="state-badge" id="whoBadge" style="margin-right:8px"></span>
+    <button class="tb-btn" id="btnAccounts" style="display:none">账号管理</button>
     <button class="tb-btn" id="btnLogout">退出登录</button>
     <span class="state-badge" id="stateBadge">当前：示例（未保存）</span>
   </header>
@@ -338,6 +357,47 @@ button, input, select, textarea { font-family: inherit; }
       <div class="hist-wrap" id="histWrap" style="display:none">
         <div class="hist-left" id="histList"></div>
         <div class="hist-right" id="histDetail"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 账号管理（管理员） -->
+<div class="modal-mask" id="accountModal">
+  <div class="modal" style="width:min(660px,96vw)">
+    <div class="modal-head"><b>账号管理（管理员）</b><button id="acctClose" title="关闭">×</button></div>
+    <div class="modal-body">
+      <div class="modal-note">管理员账号 jc01 密码为 zyb，可新增 / 删除账号、重置密码。账号保存在本机浏览器（localStorage），不会上传。删除账号后，该账号不再能登录；仅本机生效。</div>
+      <div class="modal-sec">
+        <div class="modal-title">现有账号</div>
+        <div id="acctList"></div>
+      </div>
+      <div class="modal-sec">
+        <div class="modal-title">新增账号</div>
+        <div class="btn-row" style="align-items:center">
+          <input id="acctNewUser" class="msel" style="flex:1;min-width:130px" placeholder="账号名，如 jc11">
+          <input id="acctNewPass" class="msel" style="flex:1;min-width:130px" placeholder="密码，如 001">
+          <button class="mbtn primary" id="btnAcctAdd">添加账号</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 委托管理 -->
+<div class="modal-mask" id="commissionModal">
+  <div class="modal" style="width:min(1080px,97vw)">
+    <div class="modal-head"><b>委托管理 · 下委托</b><button id="commClose" title="关闭">×</button></div>
+    <div class="modal-body" style="padding:0;display:flex;flex-direction:column;min-height:0">
+      <div style="display:flex;min-height:0;flex:1">
+        <div style="width:270px;flex:none;border-right:1px solid #e6eaf0;padding:12px;overflow:auto;max-height:78vh">
+          <button class="mbtn primary" id="btnCommNew" style="width:100%;margin-bottom:10px">+ 新建委托</button>
+          <input id="commSearch" class="msel" style="margin-bottom:8px" placeholder="搜索委托编号/单位/工程">
+          <div id="commList"></div>
+        </div>
+        <div style="flex:1;min-width:0;padding:14px 18px;overflow:auto;max-height:78vh">
+          <div id="commEdit"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -3021,8 +3081,24 @@ $('#btnCopyJudge').addEventListener('click', function(){
 });
 
 /* ============ 十、登录 + 修改历史 + 初始化 ============ */
-var ACCOUNTS = { jc01:'001', jc02:'001', jc03:'001', jc04:'001', jc05:'001',
-                 jc06:'001', jc07:'001', jc08:'001', jc09:'001', jc10:'001' };
+/* 账号存本机 localStorage，管理员 jc01 密码 zyb，可增删账号 / 重置密码 */
+var ACCOUNT_KEY = 'rebar_accounts_v1';
+var DEFAULT_ACCOUNTS = { jc01:'zyb', jc02:'001', jc03:'001', jc04:'001', jc05:'001',
+                         jc06:'001', jc07:'001', jc08:'001', jc09:'001', jc10:'001' };
+var ADMIN_USER = 'jc01';
+function loadAccounts() {
+  try {
+    var v = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || 'null');
+    if (v && typeof v==='object' && !Array.isArray(v) && v[ADMIN_USER]) return v;
+  } catch(e) {}
+  return clone(DEFAULT_ACCOUNTS);
+}
+function saveAccounts(obj) {
+  try { localStorage.setItem(ACCOUNT_KEY, JSON.stringify(obj)); return true; }
+  catch(e) { alert('账号写入失败：'+(e&&e.message||e)); return false; }
+}
+var ACCOUNTS = loadAccounts();
+function isAdmin() { return currentAccount === ADMIN_USER; }
 var currentAccount = '';
 function showApp() { $('#authMask').style.display = 'none'; }
 function showLogin(msg) {
@@ -3032,7 +3108,8 @@ function showLogin(msg) {
 function bootstrapApp() {
   $('#fGrade').innerHTML = '<option value="">全部牌号</option>' + GRADE_KEYS.map(function(g){ return '<option value="'+g+'">'+g+'</option>'; }).join('');
   $('#reportPaper').style.zoom = 0.88;
-  $('#whoBadge').textContent = '当前账号：' + currentAccount;
+  $('#whoBadge').textContent = '当前账号：' + currentAccount + (isAdmin() ? '（管理员）' : '');
+  $('#btnAccounts').style.display = isAdmin() ? '' : 'none';
   showApp();
   state.reports = loadReports();
   if (state.reports.length) { state.current = clone(state.reports[0]); state.isSample = false; }
@@ -3043,6 +3120,7 @@ $('#btnLogin').addEventListener('click', function(){
   var u = $('#loginUser').value.trim(), p = $('#loginPass').value;
   $('#authErr').textContent = '';
   if (!u || !p) { $('#authErr').textContent = '请输入账号和密码'; return; }
+  ACCOUNTS = loadAccounts();
   if (!ACCOUNTS[u]) { $('#authErr').textContent = '账号不存在'; return; }
   if (ACCOUNTS[u] !== p) { $('#authErr').textContent = '密码错误'; return; }
   currentAccount = u;
@@ -3057,6 +3135,9 @@ $('#btnLogout').addEventListener('click', function(){
   try { sessionStorage.removeItem(SESSION_KEY); } catch(e) {}
   state.reports = []; state.current = createEmptyReport(); state.isSample = false;
   $('#repList').innerHTML = ''; $('#whoBadge').textContent = '';
+  $('#btnAccounts').style.display = 'none';
+  $('#accountModal').classList.remove('on');
+  $('#commissionModal').classList.remove('on');
   $('#loginUser').value = ''; $('#loginPass').value = ''; $('#authErr').textContent = '';
   showLogin();
 });
@@ -3146,6 +3227,243 @@ $('#btnHistory').addEventListener('click', function(){
   $('#histWrap').style.display = 'flex';
   histRenderList();
 });
+
+/* ============ 十一、账号管理（管理员） ============ */
+function renderAcctList() {
+  var accts = loadAccounts();
+  var keys = Object.keys(accts).sort();
+  $('#acctList').innerHTML = keys.map(function(u){
+    var admin = (u === ADMIN_USER);
+    return '<div class="acct-item"><span class="nm">'+esc(u)+(admin?'<span class="admin-tag">管理员</span>':'')+'</span>'+
+      '<input type="text" value="'+esc(accts[u])+'" data-acct-pw="'+esc(u)+'" title="修改密码" aria-label="'+esc(u)+' 密码">'+
+      '<button class="mbtn" data-acct-save="'+esc(u)+'">保存</button>'+
+      (admin ? '' : '<button class="mbtn" data-acct-del="'+esc(u)+'">删除</button>')+
+      '</div>';
+  }).join('');
+}
+$('#btnAccounts').addEventListener('click', function(){
+  if (!isAdmin()) { toast('仅管理员可管理账号'); return; }
+  renderAcctList(); $('#accountModal').classList.add('on');
+});
+$('#acctClose').addEventListener('click', function(){ $('#accountModal').classList.remove('on'); });
+$('#accountModal').addEventListener('click', function(e){ if (e.target.id==='accountModal') $('#accountModal').classList.remove('on'); });
+$('#btnAcctAdd').addEventListener('click', function(){
+  var u = $('#acctNewUser').value.trim().toLowerCase(), p = $('#acctNewPass').value;
+  if (!u || !p) { toast('请填写账号名和密码'); return; }
+  if (!/^[a-z0-9_-]+$/i.test(u)) { toast('账号名只能含字母、数字、下划线、连字符'); return; }
+  var accts = loadAccounts();
+  if (accts[u]) { toast('账号已存在：'+u); return; }
+  accts[u] = p;
+  if (!saveAccounts(accts)) return;
+  ACCOUNTS = accts;
+  $('#acctNewUser').value = ''; $('#acctNewPass').value = '';
+  renderAcctList(); toast('已新增账号：'+u);
+});
+$('#acctList').addEventListener('click', function(e){
+  var saveU = e.target.getAttribute && e.target.getAttribute('data-acct-save');
+  var delU  = e.target.getAttribute && e.target.getAttribute('data-acct-del');
+  if (saveU) {
+    var inp = $('#acctList').querySelector('[data-acct-pw="'+saveU+'"]');
+    var pw = inp ? inp.value : '';
+    if (!pw) { toast('密码不能为空'); return; }
+    var a = loadAccounts(); a[saveU] = pw;
+    if (saveAccounts(a)) { ACCOUNTS = a; toast('已保存 '+saveU+' 的密码'); }
+  } else if (delU) {
+    if (delU === ADMIN_USER) { toast('管理员账号不能删除'); return; }
+    if (!confirm('确定删除账号 '+delU+' ？此操作仅在本机生效。')) return;
+    var a2 = loadAccounts(); delete a2[delU];
+    if (saveAccounts(a2)) { ACCOUNTS = a2; renderAcctList(); toast('已删除账号：'+delU); }
+  }
+});
+
+/* ============ 十二、委托模块：下委托 / 委托单管理 ============ */
+var COMMISSION_KEY = 'rebar_commissions_v1';
+var commList = [], commCurrent = null;
+function loadCommissions() {
+  try { var v = JSON.parse(localStorage.getItem(COMMISSION_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+  catch(e) { return []; }
+}
+function saveCommissions(list) {
+  try { localStorage.setItem(COMMISSION_KEY, JSON.stringify(list)); return true; }
+  catch(e) { alert('委托单保存失败（本机存储空间可能不足）：'+(e&&e.message||e)); return false; }
+}
+function newCommission() {
+  return {
+    id: uid('cm'), no:'', client:'', project:'', part:'', entrustDate:'',
+    witnessUnit:'', witnessPerson:'', category:'见证送样',
+    samples: [ newSample() ], remark:'', createdBy: currentAccount || '',
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+  };
+}
+function newSample() {
+  return { name:'', spec:'', qty:'', batch:'', repQty:'', maker:'', use:'', desc:'', params:'', testBasis:'', judgeBasis:'' };
+}
+function renderCommList() {
+  var q = ($('#commSearch').value || '').trim().toLowerCase();
+  var arr = commList.filter(function(c){
+    if (!q) return true;
+    return [c.no, c.client, c.project, (c.samples||[]).map(function(s){ return [s.name,s.spec,s.batch].join(' '); }).join(' ')]
+      .join(' ').toLowerCase().indexOf(q) >= 0;
+  });
+  $('#commList').innerHTML = arr.length ? arr.map(function(c){
+    var on = commCurrent && c.id===commCurrent.id;
+    return '<div class="comm-item'+(on?' on':'')+'" data-comm="'+esc(c.id)+'">'+
+      '<div class="t">'+esc(c.no || '（未编号委托）')+'</div>'+
+      '<div class="s">'+esc(c.client || '未填委托单位')+'</div>'+
+      '<div class="s">'+esc(c.project || '')+' · '+((c.samples||[]).length)+' 个样品</div></div>';
+  }).join('') : '<div class="hist-empty">'+(q?'无匹配委托单':'暂无委托单，点上方「新建委托」')+'</div>';
+}
+function sampleCard(s, i) {
+  function f(label, key, ph) {
+    return '<div class="comm-f"><label>'+label+'</label><input data-sample="'+key+'" data-idx="'+i+'" value="'+esc(s[key]||'')+'" placeholder="'+(ph||'')+'"></div>';
+  }
+  return '<div class="samp-card" data-card="'+i+'">'+
+    '<div class="samp-hd"><span>样品 '+(i+1)+'</span>'+
+      '<button class="mbtn" data-samp-del="'+i+'">删除该样品</button></div>'+
+    '<div class="comm-grid">'+
+      f('样品名称','name','如 热轧带肋钢筋')+f('规格型号','spec','如 HRB400E φ25mm')+
+      f('样品数量','qty','如 55cm×5根')+f('样品批号','batch','如 26109441')+
+      f('代表数量','repQty','如 3.234t')+f('厂家/产地','maker','如 抚顺新钢铁')+
+      f('拟定用途','use','如 桩基工程')+f('样品描述','desc','如 青灰色、无锈蚀')+
+      f('检测参数','params','如 屈服强度、抗拉强度')+f('试验依据','testBasis','如 GB 1499.2-2024')+
+      f('评定依据','judgeBasis','如 GB 1499.2-2024')+
+    '</div></div>';
+}
+function renderCommEdit() {
+  var box = $('#commEdit');
+  if (!commCurrent) {
+    box.innerHTML = '<div class="hist-empty" style="padding:60px 10px;text-align:center">从左侧选择一份委托单，或点「新建委托」开始填写。<br><br>填写后点「保存委托单」，数据只保存在本机浏览器。</div>';
+    return;
+  }
+  var c = commCurrent;
+  function g(label, key, ph, area) {
+    var v = esc(c[key]||'');
+    return '<div class="comm-f"><label>'+label+'</label>'+(area
+      ? '<textarea data-comm-field="'+key+'" placeholder="'+(ph||'')+'">'+v+'</textarea>'
+      : '<input data-comm-field="'+key+'" value="'+v+'" placeholder="'+(ph||'')+'">')+'</div>';
+  }
+  box.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">'+
+      '<b style="font-size:14px;color:#1f3a5f">委托单'+(c.no?' · '+esc(c.no):'')+'</b>'+
+      '<div class="btn-row" style="margin:0">'+
+        '<button class="mbtn primary" id="btnCommSave">保存委托单</button>'+
+        '<button class="mbtn" id="btnCommToReport">用此委托新建报告</button>'+
+        '<button class="mbtn" id="btnCommDelete">删除</button>'+
+      '</div></div>'+
+    '<div class="comm-sec-t">委托信息</div>'+
+    '<div class="comm-grid">'+
+      g('委托编号','no','如 WT-JZ-2026-001')+g('委托单位','client','填写委托单位全称')+
+      g('工程名称','project','')+g('工程部位','part','')+
+      g('委托日期','entrustDate','如 2026-11-16')+g('检测类别','category','见证送样')+
+      g('见证单位','witnessUnit','')+g('见证人','witnessPerson','')+
+    '</div>'+
+    g('备注','remark','',true)+
+    '<div class="comm-sec-t">样品信息</div>'+
+    (c.samples||[]).map(sampleCard).join('')+
+    '<button class="mbtn" id="btnSampAdd" style="margin-top:4px">+ 添加样品</button>'+
+    '<div class="modal-note" style="margin-top:14px">委托单保存于本机，不与报告混存。点「用此委托新建报告」可把委托单位、工程名称、样品的牌号规格 / 批号 / 厂家 / 代表数量等填入一份新报告，再补检测数据出报告。</div>';
+}
+function collectCommForm() {
+  if (!commCurrent) return;
+  $('#commEdit').querySelectorAll('[data-comm-field]').forEach(function(el){ commCurrent[el.getAttribute('data-comm-field')] = el.value; });
+  var samples = [];
+  $('#commEdit').querySelectorAll('.samp-card').forEach(function(card){
+    var idx = +card.getAttribute('data-card'), s = newSample();
+    card.querySelectorAll('[data-sample]').forEach(function(el){ s[el.getAttribute('data-sample')] = el.value; });
+    samples[idx] = s;
+  });
+  commCurrent.samples = samples.filter(function(x){ return x; });
+}
+function openCommissionModal() {
+  if (!currentAccount) { toast('请先登录'); return; }
+  commList = loadCommissions();
+  commCurrent = commList.length ? commList[0] : null;
+  renderCommList(); renderCommEdit();
+  $('#commissionModal').classList.add('on');
+}
+$('#btnCommission').addEventListener('click', openCommissionModal);
+$('#commClose').addEventListener('click', function(){ collectCommForm(); $('#commissionModal').classList.remove('on'); });
+$('#commissionModal').addEventListener('click', function(e){ if (e.target.id==='commissionModal') $('#commissionModal').classList.remove('on'); });
+$('#commSearch').addEventListener('input', renderCommList);
+$('#commList').addEventListener('click', function(e){
+  var it = e.target.closest ? e.target.closest('[data-comm]') : null; if (!it) return;
+  collectCommForm();
+  commCurrent = commList.filter(function(c){ return c.id===it.getAttribute('data-comm'); })[0] || null;
+  renderCommList(); renderCommEdit();
+});
+$('#btnCommNew').addEventListener('click', function(){
+  collectCommForm();
+  commCurrent = newCommission();
+  renderCommList(); renderCommEdit();
+  var first = $('#commEdit').querySelector('[data-comm-field="client"]'); if (first) first.focus();
+});
+$('#commEdit').addEventListener('click', function(e){
+  var t = e.target;
+  if (!t || !t.getAttribute) return;
+  if (t.id === 'btnSampAdd') {
+    collectCommForm(); commCurrent.samples.push(newSample()); renderCommEdit();
+  } else if (t.getAttribute('data-samp-del') !== null) {
+    collectCommForm();
+    var i = +t.getAttribute('data-samp-del');
+    if (commCurrent.samples.length <= 1) { toast('至少保留一个样品'); return; }
+    commCurrent.samples.splice(i,1); renderCommEdit();
+  } else if (t.id === 'btnCommSave') {
+    collectCommForm();
+    commCurrent.updatedAt = new Date().toISOString();
+    if (!commCurrent.createdBy) commCurrent.createdBy = currentAccount || '';
+    var idx = -1;
+    commList.forEach(function(c,k){ if (c.id===commCurrent.id) idx=k; });
+    if (idx>=0) commList[idx] = clone(commCurrent); else commList.unshift(clone(commCurrent));
+    if (saveCommissions(commList)) { renderCommList(); toast('委托单已保存：'+(commCurrent.no||'未编号')); }
+  } else if (t.id === 'btnCommDelete') {
+    if (!confirm('确定删除这份委托单？')) return;
+    commList = commList.filter(function(c){ return c.id!==commCurrent.id; });
+    if (saveCommissions(commList)) {
+      commCurrent = commList.length ? commList[0] : null;
+      renderCommList(); renderCommEdit(); toast('委托单已删除');
+    }
+  } else if (t.id === 'btnCommToReport') {
+    collectCommForm();
+    commissionToReport(commCurrent);
+  }
+});
+/* 委托单 → 新报告：把委托与样品里明确写出的信息填入，不推断任何数值/限值 */
+function commissionToReport(c) {
+  var r = createEmptyReport();
+  r.reportNo = c.no || '';
+  r.client = c.client || '';
+  r.projectName = c.project || '';
+  r.projectPart = c.part || '';
+  r.entrustNo = c.no || '';
+  r.entrustDate = c.entrustDate || '';
+  r.testCategory = c.category || '见证送样';
+  r.witnessUnit = c.witnessUnit || '';
+  r.witnessPerson = c.witnessPerson || '';
+  r.remark = c.remark || '';
+  var s = (c.samples||[])[0];
+  if (s) {
+    if (s.spec) {
+      var sp = String(s.spec);
+      var dm = sp.match(/[φΦ￠]\s*(\d+(?:\.\d+)?)/) || sp.match(/直径\s*(\d+(?:\.\d+)?)/) || sp.match(/(\d+(?:\.\d+)?)\s*mm\b/i);
+      if (dm) r.diameter = normDia(dm[1]);
+    }
+    if (s.maker) r.manufacturer = s.maker;
+    if (s.batch) r.batchNo = s.batch;
+    if (s.repQty) r.representQty = s.repQty;
+    if (s.testBasis) r.testBasis = s.testBasis;
+    if (s.judgeBasis) r.judgeBasis = s.judgeBasis;
+    var gm = String(s.spec||'').match(/HRBF?\s*\d+[A-Za-z]?|HPB\d+|HRB\d+[A-Za-z]?/i);
+    if (gm) r.grade = gm[0].replace(/\s+/g,'');
+    if (s.name) r.sample = { name:r.sample.name, no:s.name, quantity:s.qty||'', state:s.desc||'' };
+  }
+  r.judgeSource = 'builtin';
+  r.customItems = [];
+  state.current = normalizeReport(r);
+  state.isSample = false;
+  renderForm(); renderList(); refreshPreview();
+  $('#commissionModal').classList.remove('on');
+  toast('已用委托单新建报告：'+(c.no||'未编号')+'，请补检测数据后保存');
+}
 
 (function init(){
   $('#fGrade').innerHTML = '<option value="">全部牌号</option>' + GRADE_KEYS.map(function(g){ return '<option value="'+g+'">'+g+'</option>'; }).join('');

@@ -248,12 +248,14 @@ button, input, select, textarea { font-family: inherit; }
 <input type="file" id="restoreFile" accept=".json,application/json" hidden>
 <input type="file" id="importFile" accept=".json,application/json" hidden>
 <input type="file" id="photoFile" accept="image/*" multiple hidden>
+<input type="file" id="excelFile" accept=".xlsx,.xls,.csv" hidden>
+<input type="file" id="pdfFile" accept=".pdf" hidden>
 
 <div class="modal-mask" id="captureModal">
   <div class="modal">
     <div class="modal-head"><b>拍照 / 上传原始凭证 · 导入数据</b><button id="modalClose" title="关闭">×</button></div>
     <div class="modal-body">
-      <div class="modal-note">本程序离线运行，不含文字识别。原始凭证照片在此处拍照或上传并随报告存档；照片中的委托方信息与检测数据，由对话中的助手识别整理后粘贴到下方「导入数据」，即可一键填表出报告。判定只依据你提供的限值，不自行补用标准值。</div>
+      <div class="modal-note">本程序支持三种本地识别，文件均不上传：<b>① 拍照识别</b>——点「拍照识别并填表」，把已加入的凭证照片在本机浏览器内识别文字；<b>② Excel 委托单识别</b>——选择电子版 .xlsx / .xls / .csv 委托单；<b>③ PDF 委托单识别</b>——选择电子版 .pdf 委托单（文本层直接提取，扫描件自动转图片识别）。识别结果整理成 JSON 填入下方「导入数据」，核对后一键填表出报告。首次识别需下载识别引擎（约数 MB），之后会缓存。识别可能不准，请务必对照原文核对数值、单位、限值；程序只提取凭证上明确写出的内容，不自行假设任何数值、单位、限值或标准值。</div>
 
       <div class="modal-sec">
         <div class="modal-title">1 · 拍照或选择图片（作为原始凭证附页）</div>
@@ -264,14 +266,23 @@ button, input, select, textarea { font-family: inherit; }
           <button class="mbtn" id="btnMobileShot">手机直接拍照</button>
           <button class="mbtn" id="btnPickPhoto">选择图片文件</button>
           <button class="mbtn" id="btnCamStop">关闭摄像头</button>
+          <button class="mbtn" id="btnOcr">拍照识别并填表</button>
+          <button class="mbtn primary" id="btnExcel">Excel 委托单识别并填表</button>
+          <button class="mbtn primary" id="btnPdf">PDF 委托单识别并填表</button>
         </div>
         <div id="photoList" class="photo-list"></div>
         <label class="chk"><input type="checkbox" id="chkIncludePhotos"> 打印 / 导出时包含「原始凭证影像」附页</label>
       </div>
 
+      <div class="modal-sec" id="ocrSection" style="display:none">
+        <div class="modal-title">OCR 识别原文（请核对，识别可能有误）</div>
+        <textarea id="ocrText" readonly style="width:100%;min-height:120px;border:1px solid #d5dce5;border-radius:4px;padding:8px;font-size:11.5px;font-family:Consolas,Monaco,monospace;resize:vertical;background:#fbfcfe" placeholder="本地识别出的原始文字会显示在这里"></textarea>
+        <div id="ocrStatus" class="modal-note" style="margin-bottom:0">尚未识别。</div>
+      </div>
+
       <div class="modal-sec">
         <div class="modal-title">2 · 导入委托方信息与检测数据（JSON）</div>
-        <textarea id="importText" placeholder="粘贴助手整理好的 JSON 数据"></textarea>
+        <textarea id="importText" placeholder="本地 OCR 自动填入，或粘贴助手整理好的 JSON 数据"></textarea>
         <div class="btn-row">
           <button class="mbtn primary" id="btnImportApply">填入表单并生成报告</button>
           <button class="mbtn" id="btnImportFile">选择 JSON 文件（推荐）</button>
@@ -2577,6 +2588,378 @@ function applyImport() {
   toast('已导入并生成报告：'+r.reportNo);
 }
 
+/* —— 本地 OCR：Tesseract.js 在浏览器内识别凭证照片，照片不上传 —— */
+var ocrWorker = null;
+var OCR_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function loadOcrScript(src) {
+  return new Promise(function(res, rej){
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = function(){ res(); };
+    s.onerror = function(){ rej(new Error('识别引擎脚本加载失败，请检查网络后重试')); };
+    document.head.appendChild(s);
+  });
+}
+function setOcrStatus(text, isErr) {
+  var el = $('#ocrStatus'); if (!el) return;
+  el.textContent = text;
+  el.style.color = isErr ? '#c02424' : '#4a5b72';
+}
+async function ensureOcrWorker() {
+  if (ocrWorker) return ocrWorker;
+  if (typeof Tesseract === 'undefined' || !Tesseract.createWorker) {
+    setOcrStatus('正在加载本地识别引擎（首次需下载，约数 MB）…');
+    await loadOcrScript(OCR_CDN);
+  }
+  if (typeof Tesseract === 'undefined' || !Tesseract.createWorker) {
+    throw new Error('识别引擎加载失败，请检查网络后重试');
+  }
+  setOcrStatus('正在加载中文识别语言包（首次较慢，请稍候）…');
+  ocrWorker = await Tesseract.createWorker('chi_sim', 1, {
+    logger: function(m){
+      var st = (m && m.status) ? m.status : '';
+      if (st === 'recognizing text') setOcrStatus('识别中：' + Math.round((m.progress||0)*100) + '%');
+      else if (st.indexOf('language') >= 0 || st.indexOf('traineddata') >= 0) setOcrStatus('正在加载中文语言包…');
+      else if (st.indexOf('initializing') >= 0) setOcrStatus('正在初始化识别引擎…');
+    }
+  });
+  return ocrWorker;
+}
+
+/* 从 OCR 文字 / Excel 委托单中「保守提取」：只取凭证上明确写出的字段、数值、单位、限值。
+   不推断比较方向、不补单位、不补面积、不套用任何标准值；识别不到就留空，
+   由 applyImport 列入「需补充」。原文完整展示，供人工核对修正。 */
+var FIELD_ALIASES = [
+  [['报告编号','报告号'],'报告编号'],
+  [['委托单位','委托方','送检单位','委托部门'],'委托单位'],
+  [['工程名称','项目名称'],'工程名称'],
+  [['委托日期','委托时间'],'委托日期'],
+  [['委托编号','委托号'],'委托编号'],
+  [['试验日期','检测日期','试验时间','检测时间'],'试验日期'],
+  [['工程部位','使用部位','工程部位/用途'],'工程部位'],
+  [['检测类别','检验类别','检测类型'],'检测类别'],
+  [['判定依据','评定依据'],'判定依据'],
+  [['检测依据','检验依据'],'检测依据'],
+  [['检测方法','检验方法'],'检测方法'],
+  [['牌号','钢筋牌号'],'牌号'],
+  [['公称直径','直径','规格'],'公称直径'],
+  [['批号','炉批号','批次编号','批次'],'批号'],
+  [['生产厂家','生产企业','厂名'],'生产厂家'],
+  [['代表数量','代表批量'],'代表数量'],
+  [['试样编号','样品编号','试样号'],'试样编号'],
+  [['见证单位','监理单位'],'见证单位'],
+  [['见证人/联系电话','见证人/电话','见证人'],'见证人'],
+  [['主要仪器设备','仪器设备','主要设备'],'主要仪器设备'],
+  [['检测单位','检测机构'],'检测单位'],
+  [['签发日期','签发时间'],'签发日期'],
+  [['备注'],'备注']
+];
+var METRIC_DEFS = [
+  { name:'屈服力', keys:['屈服力','下屈服力'] },
+  { name:'最大力', keys:['最大力','抗拉最大力'] },
+  { name:'屈服强度', keys:['屈服强度','下屈服强度'] },
+  { name:'抗拉强度', keys:['抗拉强度'] },
+  { name:'断后伸长率', keys:['断后伸长率','伸长率'] },
+  { name:'最大力总延伸率', keys:['最大力总延伸率','总延伸率'] },
+  { name:'重量偏差', keys:['重量偏差'] }
+];
+var SPEC_RE = /(≥|>=|≧|≤|<=|≦|>|<|±)\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*[~～\-—]\s*\d+(?:\.\d+)?/g;
+var NUM_RE  = /-?\d+(?:\.\d+)?/g;
+var AREA_RE = /(?:面积|横截面积|S)\s*[:：=]?\s*(\d+(?:\.\d+)?(?:\s*[、,，]\s*\d+(?:\.\d+)?)*)\s*(mm²|mm2|cm²|cm2)?/;
+var UNIT_RE = /(MPa|N\/mm²|N\/mm2|kN|％|%)/;
+/* 所有已知字段别名，长别名优先，用于「值」里截断下一个标签（Excel 常把多组标签拼在一行） */
+var ALL_ALIASES = (function(){
+  var a = [];
+  FIELD_ALIASES.forEach(function(f){ f[0].forEach(function(x){ a.push(x); }); });
+  /* 额外截断词：表格里常见的相邻表头，避免把下一格内容吞进值里 */
+  ['联系电话','联系方式','邮政编码','通讯地址','管理编号','报告时限','样品处理方式','检测费用'].forEach(function(x){ a.push(x); });
+  return a.sort(function(x,y){ return y.length - x.length; });
+})();
+function cutAtNextLabel(val) {
+  var best = val.length;
+  ALL_ALIASES.forEach(function(alias){
+    var re = new RegExp('(^|\\s)' + escapeRe(alias) + '(\\s*[:：]|\\s+)');
+    var m = val.match(re);
+    if (m && m.index > 0) {
+      var pos = m.index + m[1].length;
+      if (pos < best) best = pos;
+    }
+  });
+  return val.slice(0, best).trim();
+}
+
+/* 公共提取：lines 为文本行数组（OCR 逐行文本，或 Excel 逐单元格拼接的行）。 */
+function extractCommon(lines, out) {
+  /* 1) key-value 字段：中文标签 + 可选冒号 + 值（值在下一个已知标签处截断） */
+  var got = {};
+  lines.forEach(function(line){
+    for (var i=0;i<FIELD_ALIASES.length;i++) {
+      var aliases = FIELD_ALIASES[i][0], target = FIELD_ALIASES[i][1];
+      if (got[target]) continue;
+      for (var j=0;j<aliases.length;j++) {
+        var re = new RegExp(escapeRe(aliases[j]) + '\\s*[:：]?\\s*([^，,；;\\n]+)');
+        var m = line.match(re);
+        if (m && m[1] && m[1].trim()) {
+          var v = cutAtNextLabel(m[1].trim());
+          if (v) { out[target] = v; got[target] = true; }
+          break;
+        }
+      }
+    }
+  });
+
+  /* 2) 面积与面积单位：只在凭证明确写出时才记录，绝不按公称直径自算 */
+  var areaVals = [], areaUnit = '';
+  lines.forEach(function(line){
+    var m = line.match(AREA_RE);
+    if (!m) return;
+    m[1].split(/[、,，]/).forEach(function(x){ var v = String(x).trim(); if (v) areaVals.push(v); });
+    if (m[2] && !areaUnit) areaUnit = m[2];
+  });
+
+  /* 3) 检测数据：指标关键词 + 同行数值 + 同行单位 / 同行限值 */
+  var items = [];
+  lines.forEach(function(line){
+    var hit = null, key = '';
+    for (var i=0;i<METRIC_DEFS.length && !hit;i++) {
+      for (var j=0;j<METRIC_DEFS[i].keys.length;j++) {
+        if (line.indexOf(METRIC_DEFS[i].keys[j]) >= 0) { hit = METRIC_DEFS[i]; key = METRIC_DEFS[i].keys[j]; break; }
+      }
+    }
+    if (!hit) return;
+    var tail = line.slice(line.indexOf(key) + key.length);
+    var specs = tail.match(SPEC_RE) || [];
+    var clean = tail.replace(SPEC_RE, ' ');
+    var nums = clean.match(NUM_RE) || [];
+    if (!nums.length) return;
+    var um = clean.match(UNIT_RE);
+    var item = {
+      '指标名称': hit.name,
+      '实测值': nums.map(function(x){ return x; }),
+      '单位': um ? um[1] : '',
+      '合格限值或范围': specs.join('，')
+    };
+    if ((hit.name === '屈服力' || hit.name === '最大力') && areaVals.length) {
+      item['面积'] = areaVals.slice();
+      item['面积单位'] = areaUnit;
+      item['换算为'] = (hit.name === '屈服力') ? '屈服强度' : '抗拉强度';
+      item['结果单位'] = 'MPa';
+    }
+    items.push(item);
+  });
+  if (items.length) out['检测数据'] = items;
+  return out;
+}
+function linesToImport(lines) {
+  var out = clone(IMPORT_TEMPLATE);
+  out['检测数据'] = [];
+  return extractCommon(lines, out);
+}
+function parseOcrToImport(text) {
+  var lines = String(text||'').replace(/【[^】]*】/g, ' ').split(/\r?\n/)
+    .map(function(x){ return String(x).replace(/\t/g, ' '); });
+  return linesToImport(lines);
+}
+
+/* —— 本地 Excel 委托单识别：SheetJS 在浏览器内解析，文件不上传 —— */
+var XLSX_CDN = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+async function ensureXlsx() {
+  if (typeof XLSX !== 'undefined' && XLSX && XLSX.read) return XLSX;
+  setOcrStatus('正在加载 Excel 解析引擎（首次需下载，约 1 MB）…');
+  await loadOcrScript(XLSX_CDN);
+  if (typeof XLSX === 'undefined' || !XLSX || !XLSX.read) throw new Error('Excel 解析引擎加载失败，请检查网络后重试');
+  return XLSX;
+}
+/* Excel 单元格 → 文本行：同一行内相邻单元格用空格拼接，日期按可读文本输出。
+   逐行扫描所有工作表，保留原始版式顺序，便于人工核对。 */
+function workbookToLines(wb) {
+  var lines = [];
+  (wb.SheetNames || []).forEach(function(sn){
+    lines.push('【工作表：'+sn+'】');
+    var ws = wb.Sheets[sn]; if (!ws) return;
+    var rows = XLSX.utils.sheet_to_json(ws, { header:1, defval:'', raw:false });
+    rows.forEach(function(row){
+      if (!Array.isArray(row)) return;
+      var cells = row.map(function(c){
+        if (c === undefined || c === null) return '';
+        if (typeof c === 'number') return String(c);
+        return String(c).replace(/\t/g,' ');
+      }).filter(function(x){ return x !== ''; });
+      var text = cells.join(' ').replace(/\s+/g,' ').trim();
+      if (text) lines.push(text);
+    });
+  });
+  return lines;
+}
+async function runExcelImport(file) {
+  if (!file) return;
+  $('#ocrSection').style.display = '';
+  setOcrStatus('正在读取 Excel：' + file.name + ' …');
+  try {
+    var X = await ensureXlsx();
+    var buf = await file.arrayBuffer();
+    var wb = X.read(buf, { type:'array', cellDates:true });
+    var lines = workbookToLines(wb);
+    var displayText = lines.join('\n');
+    $('#ocrText').value = displayText;
+    var parsed = linesToImport(lines);
+    $('#importText').value = JSON.stringify(parsed, null, 2);
+    var n = countOcrFilled(parsed);
+    if (n === 0) {
+      setOcrStatus('已读取「' + file.name + '」，但未匹配到可填字段。请查看上方「识别原文」，手工把信息整理进下方 JSON 后填表。');
+    } else {
+      setOcrStatus('已从「' + file.name + '」整理出约 ' + n + ' 处信息填入下方 JSON。请对照上方原文核对、修正数值 / 单位 / 限值，再点「填入表单并生成报告」。程序未自行假设任何数值、单位、限值或标准值；未识别到的项会在报告中列为需补充。');
+    }
+    toast('Excel 委托单已识别，请核对原文与 JSON');
+  } catch (e) {
+    setOcrStatus('Excel 读取失败：' + (e && e.message || e), true);
+    toast('Excel 读取失败：' + (e && e.message || e));
+  }
+}
+
+/* —— 本地 PDF 委托单识别：PDF.js 在浏览器内提取文本层，文件不上传。
+   若 PDF 无文本层（扫描件），逐页渲染成图片后用已加载的 OCR 引擎识别。 */
+var PDFJS_CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+var PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+async function ensurePdfjs() {
+  if (typeof pdfjsLib !== 'undefined' && pdfjsLib.getDocument) return pdfjsLib;
+  setOcrStatus('正在加载 PDF 解析引擎（首次需下载，约 1 MB）…');
+  await loadOcrScript(PDFJS_CDN);
+  if (typeof pdfjsLib === 'undefined' || !pdfjsLib.getDocument) throw new Error('PDF 解析引擎加载失败，请检查网络后重试');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  return pdfjsLib;
+}
+/* 把 PDF.js 的 textContent 按坐标还原成文本行：同一基线(y)的片段按 x 顺序拼接。
+   表格单元格内换行的值 y 会有轻微波动，故用文本高度中位数自适应计算行容差，
+   避免把「标签」和「跨行的值」拆到不同行。 */
+function pdfTextToLines(items) {
+  var list = (items || []).filter(function(it){ return it.str && String(it.str).trim(); });
+  if (!list.length) return [];
+  var hs = list.map(function(it){ return it.height || 0; }).filter(function(h){ return h > 0; }).sort(function(a,b){ return a-b; });
+  var medianH = hs.length ? hs[Math.floor(hs.length/2)] : 10;
+  var tolerance = Math.max(4, medianH * 1.4);
+  var rows = [];
+  list.forEach(function(it){
+    var x = (it.transform && it.transform[4]) || 0;
+    var y = (it.transform && it.transform[5]) || 0;
+    var row = null;
+    for (var i=0;i<rows.length;i++) {
+      if (Math.abs(rows[i].y - y) <= tolerance) { row = rows[i]; break; }
+    }
+    if (!row) { row = { y:y, cells:[] }; rows.push(row); }
+    row.cells.push({ x:x, s:String(it.str) });
+  });
+  rows.sort(function(a,b){ return b.y - a.y; });
+  return rows.map(function(r){
+    r.cells.sort(function(a,b){ return a.x - b.x; });
+    return r.cells.map(function(c){ return c.s; }).join(' ').replace(/\s+/g,' ').trim();
+  }).filter(function(x){ return x; });
+}
+async function runPdfImport(file) {
+  if (!file) return;
+  $('#ocrSection').style.display = '';
+  setOcrStatus('正在读取 PDF：' + file.name + ' …');
+  try {
+    var lib = await ensurePdfjs();
+    var buf = await file.arrayBuffer();
+    var pdf = await lib.getDocument({ data:new Uint8Array(buf) }).promise;
+    var lines = [], scannedPages = [];
+    for (var p=1; p<=pdf.numPages; p++) {
+      setOcrStatus('正在解析第 ' + p + ' / ' + pdf.numPages + ' 页…');
+      var page = await pdf.getPage(p);
+      var tc = await page.getTextContent();
+      var pageLines = pdfTextToLines(tc.items);
+      var hasText = pageLines.join('').replace(/\s/g,'').length > 0;
+      if (hasText) {
+        lines.push('【第'+p+'页】');
+        lines = lines.concat(pageLines);
+      } else {
+        scannedPages.push(p);
+      }
+    }
+    /* 无文本层的扫描页：渲染成图片后走 OCR */
+    if (scannedPages.length) {
+      setOcrStatus('检测到 '+scannedPages.length+' 页为扫描件，正在加载 OCR 引擎…');
+      var worker = await ensureOcrWorker();
+      for (var k=0;k<scannedPages.length;k++) {
+        var pn = scannedPages[k];
+        setOcrStatus('正在 OCR 识别第 '+pn+' 页…');
+        var pg = await pdf.getPage(pn);
+        var vp = pg.getViewport({ scale:2 });
+        var cv = document.createElement('canvas');
+        cv.width = Math.floor(vp.width); cv.height = Math.floor(vp.height);
+        await pg.render({ canvasContext:cv.getContext('2d'), viewport:vp }).promise;
+        var res = await worker.recognize(cv);
+        lines.push('【第'+pn+'页·OCR】');
+        lines = lines.concat(String((res && res.data && res.data.text)||'').split(/\r?\n/));
+      }
+    }
+    if (!lines.length) {
+      setOcrStatus('未能从 PDF 提取到文字（可能是空白或图片加密页）。请查看原文，或改用「拍照识别」。', true);
+      return;
+    }
+    $('#ocrText').value = lines.join('\n');
+    var parsed = linesToImport(lines);
+    $('#importText').value = JSON.stringify(parsed, null, 2);
+    var n = countOcrFilled(parsed);
+    if (n === 0) {
+      setOcrStatus('已读取「' + file.name + '」，但未匹配到可填字段。请查看上方「识别原文」，手工把信息整理进下方 JSON 后填表。');
+    } else {
+      setOcrStatus('已从「' + file.name + '」整理出约 ' + n + ' 处信息填入下方 JSON。请对照上方原文核对、修正数值 / 单位 / 限值，再点「填入表单并生成报告」。程序未自行假设任何数值、单位、限值或标准值；未识别到的项会在报告中列为需补充。');
+    }
+    toast('PDF 委托单已识别，请核对原文与 JSON');
+  } catch (e) {
+    setOcrStatus('PDF 读取失败：' + (e && e.message || e), true);
+    toast('PDF 读取失败：' + (e && e.message || e));
+  }
+}
+function countOcrFilled(d) {
+  var n = 0;
+  Object.keys(d).forEach(function(k){
+    if (k==='检测数据'||k==='样品信息'||k==='合格限值'||k==='原始凭证照片') return;
+    var v = d[k]; if (v!=='' && v!==null && v!==undefined) n++;
+  });
+  n += (d['检测数据']||[]).length;
+  return n;
+}
+async function runLocalOcr() {
+  var photos = state.current.photos || [];
+  if (!photos.length) {
+    setOcrStatus('请先在第 1 步拍照或选择图片加入凭证，再识别。', true);
+    toast('请先拍照或选择图片'); return;
+  }
+  $('#ocrSection').style.display = '';
+  var btn = $('#btnOcr');
+  if (btn) { btn.disabled = true; btn.textContent = '识别中…'; }
+  try {
+    var worker = await ensureOcrWorker();
+    var chunks = [];
+    for (var i=0;i<photos.length;i++) {
+      setOcrStatus('正在识别第 ' + (i+1) + ' / ' + photos.length + ' 张…');
+      var res = await worker.recognize(photos[i].data);
+      var txt = (res && res.data && res.data.text) ? res.data.text : '';
+      chunks.push('【' + (photos[i].name || ('凭证'+(i+1))) + '】\n' + txt);
+    }
+    var text = chunks.join('\n\n');
+    $('#ocrText').value = text;
+    var parsed = parseOcrToImport(text);
+    $('#importText').value = JSON.stringify(parsed, null, 2);
+    var n = countOcrFilled(parsed);
+    if (n === 0) {
+      setOcrStatus('识别完成，但未能从文字中匹配到可填字段。请查看上方原文，手工把信息整理进下方 JSON 后填表。');
+    } else {
+      setOcrStatus('识别完成：已从凭证文字整理出约 ' + n + ' 处信息填入下方 JSON。OCR 可能有误，请对照上方原文核对、修正数值 / 单位 / 限值，再点「填入表单并生成报告」。程序未自行假设任何数值、单位、限值或标准值；未识别到的项会在报告中列为需补充。');
+    }
+    toast('本地 OCR 完成，请核对原文与 JSON 后填表');
+  } catch (e) {
+    setOcrStatus('识别失败：' + (e && e.message || e), true);
+    toast('识别失败：' + (e && e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '本地 OCR 识别并填表'; }
+  }
+}
+
 /* —— 事件绑定 —— */
 $('#btnCapture').addEventListener('click', openCaptureModal);
 $('#modalClose').addEventListener('click', closeCaptureModal);
@@ -2584,6 +2967,19 @@ $('#captureModal').addEventListener('click', function(e){ if (e.target.id==='cap
 $('#btnCamStart').addEventListener('click', startCam);
 $('#btnCamShot').addEventListener('click', shotCam);
 $('#btnCamStop').addEventListener('click', stopCam);
+$('#btnOcr').addEventListener('click', runLocalOcr);
+$('#btnExcel').addEventListener('click', function(){ $('#excelFile').click(); });
+$('#excelFile').addEventListener('change', function(e){
+  var f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (f) runExcelImport(f);
+});
+$('#btnPdf').addEventListener('click', function(){ $('#pdfFile').click(); });
+$('#pdfFile').addEventListener('change', function(e){
+  var f = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (f) runPdfImport(f);
+});
 $('#btnPickPhoto').addEventListener('click', function(){ $('#photoFile').click(); });
 $('#btnMobileShot').addEventListener('click', mobileShot);
 $('#photoFile').addEventListener('change', function(e){ handlePhotoFiles(e.target.files); e.target.value=''; });

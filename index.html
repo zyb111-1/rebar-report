@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>钢筋试验检测报告生成器</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; background: #eef1f5; color: #1f2329; }
+button, input, select, textarea { font-family: inherit; }
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+.topbar { height: 58px; flex-shrink: 0; background: #1f3a5f; color: #fff; display: flex; align-items: center; padding: 0 18px; gap: 10px; }
+.topbar h1 { font-size: 17px; margin: 0 14px 0 0; font-weight: 600; white-space: nowrap; }
+.topbar .ver { font-size: 11px; opacity: .7; white-space: nowrap; }
+.tb-btn { background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.18); color: #fff; padding: 7px 12px; border-radius: 5px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.tb-btn:hover { background: rgba(255,255,255,.25); }
+.tb-btn.primary { background: #ffffff; color: #1f3a5f; font-weight: 600; }
+.tb-spacer { flex: 1; }
+.state-badge { font-size: 12px; background: rgba(255,255,255,.14); padding: 5px 12px; border-radius: 12px; white-space: nowrap; }
+
+.body { flex: 1; display: flex; min-height: 0; }
+.sidebar { width: 246px; flex-shrink: 0; background: #fff; border-right: 1px solid #dde3ea; display: flex; flex-direction: column; }
+.side-head { padding: 12px; border-bottom: 1px solid #eef1f5; }
+.side-head input, .side-head select { width: 100%; padding: 7px 8px; border: 1px solid #d5dce5; border-radius: 4px; font-size: 12px; margin-bottom: 6px; }
+.side-filters { display: flex; gap: 6px; }
+.side-filters select { width: 50%; margin: 0; }
+.side-list { flex: 1; overflow: auto; padding: 8px; }
+.rep-item { border: 1px solid #e6eaf0; border-radius: 5px; padding: 9px 10px; margin-bottom: 7px; cursor: pointer; }
+.rep-item:hover { border-color: #1f3a5f; background: #f6f9fd; }
+.rep-item.active { border-color: #1f3a5f; background: #eef4fb; }
+.rep-no { font-size: 12px; font-weight: 600; color: #1f3a5f; display: flex; justify-content: space-between; gap: 6px; }
+.rep-sub { font-size: 11px; color: #6b7688; margin-top: 4px; line-height: 1.4; }
+.tag { font-size: 10px; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.tag.ok { background: #e4f3ea; color: #16794a; }
+.tag.fail { background: #fbeaea; color: #c02424; }
+.tag.pending { background: #f0f2f5; color: #6b7688; }
+.side-foot { padding: 10px; border-top: 1px solid #eef1f5; font-size: 11px; color: #8a94a3; line-height: 1.5; }
+
+.form-panel { width: 408px; flex-shrink: 0; background: #fbfcfe; border-right: 1px solid #dde3ea; overflow: auto; padding: 12px; }
+.fgroup { background: #fff; border: 1px solid #e6eaf0; border-radius: 6px; margin-bottom: 10px; overflow: hidden; }
+.fgroup > summary { padding: 10px 12px; font-size: 13px; font-weight: 600; color: #1f3a5f; cursor: pointer; background: #f4f7fb; list-style: none; }
+.fgroup > summary::-webkit-details-marker { display: none; }
+.fgroup > summary::before { content: "▸ "; }
+.fgroup[open] > summary::before { content: "▾ "; }
+.fbody { padding: 6px 12px 10px; }
+.frow { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f2f4f7; }
+.frow:last-child { border-bottom: none; }
+.frow > label { width: 118px; flex-shrink: 0; font-size: 11.5px; color: #4a5b72; padding-top: 5px; }
+.req { color: #c02424; }
+.frow input, .frow select, .frow textarea { flex: 1; min-width: 0; border: 1px solid #d5dce5; border-radius: 4px; padding: 5px 7px; font-size: 12px; }
+.frow textarea { resize: vertical; min-height: 42px; line-height: 1.5; }
+.fhint { font-size: 10.5px; color: #8a94a3; line-height: 1.5; padding: 5px 0; }
+.seg { display: flex; gap: 6px; margin: 6px 0; }
+.seg button { flex: 1; padding: 6px; font-size: 11.5px; border: 1px solid #d5dce5; background: #fff; border-radius: 4px; cursor: pointer; }
+.seg button.on { background: #1f3a5f; color: #fff; border-color: #1f3a5f; }
+.sp-card { background: #f7f9fc; border: 1px solid #e6eaf0; border-radius: 5px; padding: 8px; margin-bottom: 7px; }
+.sp-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 11.5px; color: #1f3a5f; font-weight: 600; }
+.sp-head input { width: 54px; padding: 3px 5px; border: 1px solid #d5dce5; border-radius: 3px; font-size: 11.5px; }
+.sp-head .spacer { flex: 1; }
+.sp-head button { background: none; border: none; color: #c02424; font-size: 11.5px; cursor: pointer; }
+.sp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 8px; }
+.sp-grid label { font-size: 10.5px; color: #4a5b72; display: flex; align-items: center; gap: 4px; }
+.sp-grid input { width: 100%; padding: 4px 5px; border: 1px solid #d5dce5; border-radius: 3px; font-size: 11.5px; }
+.add-btn { width: 100%; padding: 7px; border: 1px dashed #9fb0c6; background: #fff; color: #1f3a5f; border-radius: 4px; font-size: 11.5px; cursor: pointer; }
+.calc-box { background: #eef4fb; padding: 8px; font-size: 11px; color: #4a5b72; line-height: 1.6; border-radius: 4px; margin-top: 6px; }
+.calc-box b { color: #1f3a5f; }
+.verdict-box { border-radius: 5px; padding: 9px 11px; margin-bottom: 10px; font-size: 12px; line-height: 1.6; }
+.verdict-box.ok { background: #e4f3ea; color: #16794a; }
+.verdict-box.fail { background: #fbeaea; color: #c02424; }
+.verdict-box.pending { background: #f0f2f5; color: #4a5b72; }
+.verdict-box b { font-size: 16px; }
+.msg { font-size: 11px; line-height: 1.6; padding: 3px 0; }
+.msg.err { color: #c02424; }
+.msg.warn { color: #a86400; }
+.gtable { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 10.5px; }
+.gtable th, .gtable td { border: 1px solid #e0e6ee; padding: 3px 4px; text-align: center; }
+.gtable th { background: #f0f2f5; color: #4a5b72; }
+.gtable td.fail { color: #c02424; font-weight: 600; }
+
+.preview-panel { flex: 1; overflow: auto; background: #dfe4ea; padding: 18px; }
+.preview-tools { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; font-size: 12px; color: #4a5b72; }
+.preview-tools input[type=range] { width: 140px; }
+
+#toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); background: #1f3a5f; color: #fff; padding: 9px 20px; border-radius: 6px; font-size: 13px; z-index: 99; display: none; }
+</style>
+
+<style id="reportStyles">
+#reportPaper { width: 210mm; min-height: 297mm; background: #fff; color: #000; padding: 9mm 8mm 7mm; margin: 0 auto; box-shadow: 0 3px 16px rgba(0,0,0,.2); font-size: 11px; line-height: 1.4; }
+#reportPaper .rp-meta { text-align: right; font-size: 10px; line-height: 1.6; }
+#reportPaper .rp-title { text-align: center; font-size: 21px; font-weight: 700; letter-spacing: 2px; margin: 3px 0 9px; }
+#reportPaper .rp-header { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; margin-bottom: 5px; }
+#reportPaper .rp-header span:first-child { flex: 1; }
+#reportPaper table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+#reportPaper td, #reportPaper th { border: 1px solid #333; padding: 2px 4px; vertical-align: middle; word-break: break-all; }
+#reportPaper .lbl { font-weight: 600; text-align: center; }
+#reportPaper .left { text-align: left; }
+#reportPaper .ctr { text-align: center; }
+#reportPaper .info-row { height: 23px; }
+#reportPaper .info-row.tall { height: 37px; }
+#reportPaper .dt-head { height: 25px; font-weight: 600; background: #f6f6f6; }
+#reportPaper .dt-row { height: 21px; }
+#reportPaper .dt-wrap { position: relative; }
+#reportPaper .blank-mark { position: absolute; bottom: 13px; left: 50%; transform: translateX(-50%); border: 2px solid #c02424; color: #c02424; font-size: 12px; font-weight: 700; letter-spacing: 2px; padding: 1px 12px; background: rgba(255,255,255,.94); }
+#reportPaper .tail { padding: 5px 7px; line-height: 1.55; }
+#reportPaper .tail-conclusion { min-height: 34px; }
+#reportPaper .tail-statement { font-size: 10px; line-height: 1.6; min-height: 56px; }
+#reportPaper .tail-addr { display: flex; }
+#reportPaper .tail-addr > div:first-child { flex: 1; border-right: 1px solid #333; }
+#reportPaper .tail-addr > div:last-child { width: 27%; }
+#reportPaper .sign-row { display: flex; justify-content: space-between; font-size: 11px; padding-top: 7px; }
+#reportPaper .fail-text { color: #c02424; font-weight: 600; }
+#reportPaper .photo-page { page-break-before: always; break-before: page; padding-top: 4mm; }
+#reportPaper .photo-page h2 { font-size: 15px; text-align: center; margin: 0 0 8px; }
+#reportPaper .photo-page .photo-meta { font-size: 10px; color: #333; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 8px; }
+#reportPaper .photo-page img { width: 100%; max-height: 230mm; object-fit: contain; display: block; margin: 0 auto 6px; border: 1px solid #999; }
+#reportPaper .photo-cap { font-size: 10px; text-align: center; margin-bottom: 8px; }
+#reportPaper .conv-page { page-break-before: always; break-before: page; padding-top: 4mm; }
+#reportPaper .conv-page h2 { font-size: 15px; text-align: center; margin: 0 0 8px; }
+#reportPaper .conv-note { font-size: 10px; line-height: 1.7; border: 1px solid #333; padding: 5px 7px; margin-bottom: 8px; }
+#reportPaper .conv-page table { margin-bottom: 8px; }
+#reportPaper .conv-page td, #reportPaper .conv-page th { border: 1px solid #333; padding: 3px 4px; font-size: 10px; text-align: center; }
+/* 拍照 / 导入模态框（导出 Word 时无对应元素，不影响报告） */
+.modal-mask { position: fixed; inset: 0; background: rgba(15,25,40,.55); z-index: 50; display: none; align-items: center; justify-content: center; }
+.modal-mask.on { display: flex; }
+.modal { width: min(700px, 94vw); max-height: 90vh; background: #fff; border-radius: 8px; display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,.3); font-size: 12px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #e6eaf0; font-size: 14px; color: #1f3a5f; }
+.modal-head button { border: none; background: none; font-size: 22px; cursor: pointer; color: #6b7688; line-height: 1; }
+.modal-body { overflow: auto; padding: 12px 16px 18px; }
+.modal-note { font-size: 11.5px; color: #4a5b72; line-height: 1.65; background: #f6f9fd; border-left: 3px solid #1f3a5f; padding: 8px 10px; margin: 8px 0; }
+#importMsg { white-space: pre-wrap; }
+.modal-sec { border: 1px solid #e6eaf0; border-radius: 6px; padding: 10px; margin-top: 10px; }
+.modal-title { font-size: 12.5px; font-weight: 600; color: #1f3a5f; margin-bottom: 8px; }
+.cam-row { display: flex; justify-content: center; background: #f2f4f7; border-radius: 5px; min-height: 8px; }
+#camVideo { width: 100%; max-height: 230px; display: none; }
+#camVideo.on { display: block; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mbtn { padding: 6px 10px; font-size: 11.5px; border: 1px solid #d5dce5; background: #fff; border-radius: 4px; cursor: pointer; color: #1f3a5f; }
+.mbtn:hover { background: #eef4fb; }
+.mbtn.primary { background: #1f3a5f; color: #fff; border-color: #1f3a5f; }
+.photo-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+.photo-item { position: relative; border: 1px solid #e0e6ee; border-radius: 4px; overflow: hidden; }
+.photo-item img { width: 100%; height: 72px; object-fit: cover; display: block; }
+.photo-item button { position: absolute; right: 2px; top: 2px; background: rgba(192,36,36,.9); color: #fff; border: none; border-radius: 3px; font-size: 11px; cursor: pointer; padding: 1px 5px; }
+.chk { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #4a5b72; margin-top: 8px; }
+#importText { width: 100%; min-height: 108px; border: 1px solid #d5dce5; border-radius: 4px; padding: 8px; font-size: 11.5px; font-family: Consolas, Monaco, monospace; resize: vertical; }
+#judgeResult { width: 100%; min-height: 152px; border: 1px solid #d5dce5; border-radius: 4px; padding: 8px; font-size: 11.5px; line-height: 1.6; font-family: Consolas, Monaco, monospace; resize: vertical; background: #fbfcfe; }
+.msel { width: 100%; padding: 7px; border: 1px solid #d5dce5; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar no-print">
+    <h1>钢筋试验检测报告生成器</h1>
+    <span class="ver">GB 1499.2-2024 · 本地离线版</span>
+    <button class="tb-btn" id="btnNew">新建</button>
+    <button class="tb-btn" id="btnSample">载入示例</button>
+    <button class="tb-btn primary" id="btnSave">保存报告</button>
+    <button class="tb-btn" id="btnPrint">打印 / 另存 PDF</button>
+    <button class="tb-btn" id="btnWord">导出 Word</button>
+    <button class="tb-btn" id="btnBackup">备份</button>
+    <button class="tb-btn" id="btnRestore">恢复</button>
+    <button class="tb-btn primary" id="btnCapture">拍照 / 导入数据</button>
+    <span class="tb-spacer"></span>
+    <span class="state-badge" id="stateBadge">当前：示例（未保存）</span>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar no-print">
+      <div class="side-head">
+        <input id="fKeyword" placeholder="检索：编号 / 工程 / 批号 / 单位">
+        <div class="side-filters">
+          <select id="fGrade"></select>
+          <select id="fVerdict"><option value="">全部结论</option><option>合格</option><option>不合格</option><option>未判定</option></select>
+        </div>
+        <div class="side-filters" style="margin-top:6px">
+          <input id="fFrom" type="date" style="width:50%;margin:0" title="试验日期起">
+          <input id="fTo" type="date" style="width:50%;margin:0" title="试验日期止">
+        </div>
+      </div>
+      <div class="side-list" id="repList"></div>
+      <div class="side-foot">数据保存在本机浏览器（localStorage），不上传。换电脑或清理浏览器数据前请先「备份」。</div>
+    </aside>
+
+    <section class="form-panel no-print" id="formPanel"></section>
+
+    <section class="preview-panel">
+      <div class="preview-tools no-print">
+        <span>预览缩放</span>
+        <input type="range" id="zoomRange" min="55" max="120" value="88">
+        <span id="zoomText">88%</span>
+        <span style="margin-left:14px;color:#8a94a3">右侧纸张即打印效果（A4 满幅）</span>
+      </div>
+      <div id="reportPaper"></div>
+    </section>
+  </div>
+</div>
+
+<input type="file" id="restoreFile" accept=".json,application/json" hidden>
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+<input type="file" id="photoFile" accept="image/*" multiple hidden>
+
+<div class="modal-mask" id="captureModal">
+  <div class="modal">
+    <div class="modal-head"><b>拍照 / 上传原始凭证 · 导入数据</b><button id="modalClose" title="关闭">×</button></div>
+    <div class="modal-body">
+      <div class="modal-note">本程序离线运行，不含文字识别。原始凭证照片在此处拍照或上传并随报告存档；照片中的委托方信息与检测数据，由对话中的助手识别整理后粘贴到下方「导入数据」，即可一键填表出报告。判定只依据你提供的限值，不自行补用标准值。</div>
+
+      <div class="modal-sec">
+        <div class="modal-title">1 · 拍照或选择图片（作为原始凭证附页）</div>
+        <div class="cam-row"><video id="camVideo" autoplay playsinline></video><canvas id="camCanvas" hidden></canvas></div>
+        <div class="btn-row">
+          <button class="mbtn" id="btnCamStart">打开摄像头</button>
+          <button class="mbtn" id="btnCamShot">拍照</button>
+          <button class="mbtn" id="btnMobileShot">手机直接拍照</button>
+          <button class="mbtn" id="btnPickPhoto">选择图片文件</button>
+          <button class="mbtn" id="btnCamStop">关闭摄像头</button>
+        </div>
+        <div id="photoList" class="photo-list"></div>
+        <label class="chk"><input type="checkbox" id="chkIncludePhotos"> 打印 / 导出时包含「原始凭证影像」附页</label>
+      </div>
+
+      <div class="modal-sec">
+        <div class="modal-title">2 · 导入委托方信息与检测数据（JSON）</div>
+        <textarea id="importText" placeholder="粘贴助手整理好的 JSON 数据"></textarea>
+        <div class="btn-row">
+          <button class="mbtn primary" id="btnImportApply">填入表单并生成报告</button>
+          <button class="mbtn" id="btnImportFile">选择 JSON 文件（推荐）</button>
+          <button class="mbtn" id="btnImportTemplate">查看字段模板</button>
+          <button class="mbtn" id="btnImportClear">清空</button>
+        </div>
+        <div id="importMsg" class="modal-note">限值格式：≥x / ≤x / &gt;x / &lt;x / ±x / a~b / 定性要求（如「无裂纹」）。未提供的限值不会判定，会被列为需补充。</div>
+      </div>
+
+      <div class="modal-sec">
+        <div class="modal-title">3 · 判定依据来源</div>
+        <select id="judgeSourceSel" class="msel">
+          <option value="builtin">按程序内置指标库（生成标准报告）</option>
+          <option value="provided">仅按导入 / 录入的合格限值判定</option>
+        </select>
+        <div class="modal-note">选「仅按提供限值」时，程序不会引用任何内置标准值；缺少限值或范围的检测项显示「待补充」、不作判定。</div>
+      </div>
+
+      <div class="modal-sec">
+        <div class="modal-title">4 · 按提供限值的核查结果（可复制）</div>
+        <textarea id="judgeResult" readonly placeholder="选择「仅按导入 / 录入的合格限值判定」并导入数据后，此处显示：总体结论、需补充内容、各指标实测值 / 要求范围 / 单项判定 / 依据。"></textarea>
+        <div class="btn-row"><button class="mbtn" id="btnCopyJudge">复制核查结果</button><button class="mbtn" id="btnRefreshJudge">刷新</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ============ 一、标准指标库（已联网核实，2026-11-13） ============ */
+var STANDARD_CURRENT = 'GB 1499.2-2024';
+var STANDARD_LEGACY = 'GB/T 1499.2-2018';
+var STANDARDS = [
+  { key: STANDARD_CURRENT, label: 'GB 1499.2-2024（现行·强制）', fullName: '《钢筋混凝土用钢 第2部分:热轧带肋钢筋》', effective: '2024-09-25 实施，替代 GB/T 1499.2-2018，性质由推荐性转为强制性' },
+  { key: STANDARD_LEGACY, label: 'GB/T 1499.2-2018（旧版·对照）', fullName: '《钢筋混凝土用钢 第2部分:热轧带肋钢筋》', effective: '已被 GB 1499.2-2024 替代，仅用于历史报告复现' }
+];
+var GRADE_SPECS = {
+  HRB400: { rel:400, rm:540, a:16, agt:7.5, seismic:false },
+  HRBF400: { rel:400, rm:540, a:16, agt:7.5, seismic:false },
+  HRB400E: { rel:400, rm:540, a:null, agt:9.0, seismic:true },
+  HRBF400E: { rel:400, rm:540, a:null, agt:9.0, seismic:true },
+  HRB500: { rel:500, rm:630, a:15, agt:7.5, seismic:false },
+  HRBF500: { rel:500, rm:630, a:15, agt:7.5, seismic:false },
+  HRB500E: { rel:500, rm:630, a:null, agt:9.0, seismic:true },
+  HRBF500E: { rel:500, rm:630, a:null, agt:9.0, seismic:true },
+  HRB600: { rel:600, rm:730, a:14, agt:7.5, seismic:false }
+};
+var GRADE_KEYS = Object.keys(GRADE_SPECS);
+var WEIGHT_LIMITS = {
+  'GB 1499.2-2024': [ {min:6,max:12,limit:5.5,clause:'GB 1499.2-2024 表 4'}, {min:14,max:20,limit:4.5,clause:'GB 1499.2-2024 表 4'}, {min:22,max:50,limit:3.5,clause:'GB 1499.2-2024 表 4'} ],
+  'GB/T 1499.2-2018': [ {min:6,max:12,limit:6.0,clause:'GB/T 1499.2-2018 表 4',caution:'不同公开资料对 6~12mm 段存在 ±6.0% 与 ±7.0% 两种记载，使用前须核对标准原文'}, {min:14,max:20,limit:5.0,clause:'GB/T 1499.2-2018 表 4'}, {min:22,max:50,limit:4.0,clause:'GB/T 1499.2-2018 表 4'} ]
+};
+var THEORETICAL_MASS = { 6:0.222,8:0.395,10:0.617,12:0.888,14:1.21,16:1.58,18:2.00,20:2.47,22:2.98,25:3.85,28:4.83,32:6.31,36:7.99,40:9.87,50:15.42 };
+var DIAMETERS = Object.keys(THEORETICAL_MASS).map(Number);
+/* 修约间隔：取自示例报告数值特征与行业报告惯例，可在此调整；不代表标准的唯一强制值 */
+var ROUNDING = { strength:5, ratio:0.01, elongation:0.1, weight:0.1 };
+
+var DEFAULT_STATEMENT = '报告无本单位“检验检测专用章”无效；报告无检测、审核、批准人签字无效；报告改动、换页无效；未经本单位书面授权，不得部分复制本报告或用于其它用途；委托试验报告仅对来样负责，不对来样所代表的批量负责，不作为仲裁证据使用；见证人及见证单位信息由委托方提供，本单位不对其真实性负责；若对本报告有异议，应于收到本报告15个工作日内向本单位提出书面复议申请，逾期不予受理。';
+var DEFAULT_INSTRUMENTS = '钢直尺 LX032，电子计重称 ST026，微机控制电液伺服万能试验机 GD01，电子引伸计 GD01-1，钢筋弯曲试验机 GD05';
+var DEFAULT_TEST_METHOD = 'GB/T 228.1-2021 拉伸试验（引伸计法测 Agt）；GB/T 28900-2022 反向弯曲、重量偏差';
+var STORAGE_KEY = 'rebar_reports_desktop_v1';
+
+/* ============ 二、通用工具 ============ */
+function $(s, r) { return (r || document).querySelector(s); }
+function esc(v) { return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function pad2(n) { return n < 10 ? '0' + n : String(n); }
+function pad3(n) { return n < 10 ? '00' + n : (n < 100 ? '0' + n : String(n)); }
+function today() { var d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()); }
+function cnDate(v) { if (!v) return ''; var p = String(v).split('-'); return p.length===3 ? Number(p[0])+'年'+Number(p[1])+'月'+Number(p[2])+'日' : v; }
+function uid(p) { return p + '-' + Date.now() + '-' + Math.floor(Math.random()*100000); }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function roundToStep(value, step) {
+  var n = Number(value); if (!isFinite(n) || !step || step <= 0) return NaN;
+  var scaled = n / step, bias = scaled >= 0 ? 1e-9 : -1e-9;
+  return Number((Math.round(scaled + bias) * step).toFixed(6));
+}
+function decimals(step) { if (step >= 1) return 0; var t = String(step), i = t.indexOf('.'); return i<0?0:t.length-i-1; }
+function fmt(value, step) { var n = Number(value); if (value==='' || value===null || value===undefined || !isFinite(n)) return ''; return n.toFixed(decimals(step||ROUNDING.ratio)); }
+function toNum(v) { var n = Number(v); return v===''||v===null||v===undefined||!isFinite(n) ? null : n; }
+function getPath(o, p) { var a = p.split('.'), t = o; for (var i=0;i<a.length;i++){ t = t[a[i]]; if (t===undefined||t===null) return ''; } return t; }
+function setPath(o, p, v) { var a = p.split('.'), t = o; for (var i=0;i<a.length-1;i++) t = t[a[i]]; t[a[a.length-1]] = v; }
+function toast(msg) { var el = $('#toast'); el.textContent = msg; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(function(){ el.style.display='none'; }, 2200); }
+function download(blob, name) { var a = document.createElement('a'), url = URL.createObjectURL(blob); a.href=url; a.download=name; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){ URL.revokeObjectURL(url); }, 1000); }
+
+/* ============ 三、数据层 ============ */
+function loadReports() { try { var v = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(v) ? v.filter(function(x){ return x && x.id && x.reportNo; }).map(normalizeReport) : []; } catch(e) { return []; } }
+function saveReports(list) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); return true; }
+  catch(e) {
+    alert('本机存储写入失败，报告未保存。常见原因是原始凭证照片过多（浏览器 localStorage 通常约 5MB）。\n建议删除部分照片，或先「备份」再清理浏览器数据。\n\n错误：'+(e&&e.message||e));
+    return false;
+  }
+}
+function nextSerial(dateText) {
+  var parts = (dateText || today()).split('-'), ym = parts[0] + parts[1];
+  var prefix = 'BG-JZ-' + ym + '-GJJ-', max = 0;
+  state.reports.forEach(function(r){ var no = r.reportNo || ''; if (no.indexOf(prefix)===0) { var t = parseInt(no.slice(prefix.length),10); if (isFinite(t) && t>max) max=t; } });
+  var tail = pad3(max+1);
+  return { reportNo: prefix+tail, sampleNo: 'YP-JZ-'+ym+'-GJJ-'+tail };
+}
+function newSpecimen(n) { return { key:uid('sp'), subNo:String(n), yield:'', tensile:'', agt:'', a:'', yieldForce:'', tensileForce:'', area:'' }; }
+function newBend(n) { return { key:uid('bd'), subNo:String(n), result:'无裂纹' }; }
+function createEmptyReport() {
+  var s = nextSerial(today());
+  return {
+    id:'', createdAt:0, updatedAt:0, verdict:'未判定',
+    standardKey: STANDARD_CURRENT, applyDiameterReduction:false,
+    reportNo:s.reportNo, formCode:'BGLQ15001F', labName:'中交建筑集团北京检测科技有限公司',
+    title:'钢筋试验检测报告', pageNo:1, pageTotal:1,
+    client:'', projectName:'', entrustDate:today(), entrustNo:'', testCategory:'见证送样', testDate:today(), projectPart:'',
+    sample:{ name:'热轧带肋钢筋', no:s.sampleNo, quantity:'', state:'青灰色、表面无锈蚀、无结疤、顺直' },
+    testBasis:'GB 1499.2-2024,GB/T 228.1-2021,GB/T 28900-2022', testMethod:DEFAULT_TEST_METHOD, judgeBasis:STANDARD_CURRENT,
+    witnessUnit:'', witnessPerson:'', instruments:DEFAULT_INSTRUMENTS,
+    grade:'HRB400E', diameter:32, batchNo:'', manufacturer:'', representQty:'', factoryNo:'/',
+    sampleNo:s.sampleNo, specimens:[newSpecimen(1),newSpecimen(2)], bends:[newBend(6),newBend(7)],
+    weight:{ subNos:'1、2、3、4、5', mode:'direct', deviation:'', lengthsText:'', actualMass:'' },
+    conclusionMode:'auto', conclusion:'', remark:'/', statement:DEFAULT_STATEMENT,
+    address:'北京市通州区张家湾镇通州工业开发区广通街8号6幢（1-3层）6-F1-01A号', phone:'010-80893365',
+    tester:'', reviewer:'', approver:'', signDate:today(),
+    photos:[], includePhotos:false, judgeSource:'builtin', providedSpecs:{}, customItems:[],
+    /* 试验机原始力值 → 强度换算：单位与面积必须由用户确认，修约间隔留空表示不修约 */
+    forceCalc:{ enabled:false, unit:'kN', areaMode:'shared', sharedArea:'', areaUnit:'mm²', rounding:'', areaSource:'用户提供' },
+    includeForceDetail:false
+  };
+}
+/* 兼容旧存档：补齐拍照 / 按提供限值判定所需字段 */
+function normalizeReport(r) {
+  if (!r || typeof r !== 'object') return r;
+  if (!Array.isArray(r.photos)) r.photos = [];
+  if (r.includePhotos === undefined) r.includePhotos = false;
+  if (!r.judgeSource) r.judgeSource = 'builtin';
+  if (!r.providedSpecs || typeof r.providedSpecs !== 'object') r.providedSpecs = {};
+  if (!Array.isArray(r.customItems)) r.customItems = [];
+  if (!r.forceCalc || typeof r.forceCalc!=='object')
+    r.forceCalc = { enabled:false, unit:'kN', areaMode:'shared', sharedArea:'', areaUnit:'mm²', rounding:'', areaSource:'用户提供' };
+  if (r.includeForceDetail === undefined) r.includeForceDetail = false;
+  (r.specimens||[]).forEach(function(s){
+    if (s.yieldForce===undefined) s.yieldForce='';
+    if (s.tensileForce===undefined) s.tensileForce='';
+    if (s.area===undefined) s.area='';
+  });
+  if (!r.weight) r.weight = { subNos:'', mode:'direct', deviation:'', lengthsText:'', actualMass:'' };
+  if (!Array.isArray(r.specimens)) r.specimens = [newSpecimen(1), newSpecimen(2)];
+  if (!Array.isArray(r.bends)) r.bends = [newBend(6), newBend(7)];
+  return r;
+}
+function createSampleReport() {
+  var r = createEmptyReport();
+  r.reportNo='BG-JZ-202611-GJJ-053';
+  r.client='中交一公局海威工程建设有限公司/中交一公局海威工程建设有限公司京秦高速公路（机场二高速至六环路段）第四标段项目经理部';
+  r.projectName='京秦高速公路（机场二高速至六环路段）施工第4标段';
+  r.entrustDate='2026-11-11'; r.entrustNo='WT-JZ-2026-JQGS4-014'; r.testDate='2026-11-11';
+  r.projectPart='温榆河特大桥桩基';
+  r.sample.no='YP-JZ-202611-GJJ-053'; r.sample.quantity='55cm x 5根；1 m x 2根';
+  r.witnessUnit='北京逸群工程咨询有限公司'; r.witnessPerson='李民/13693305780';
+  r.batchNo='434126Y210574'; r.manufacturer='河钢股份有限公司承德分公司'; r.representQty='57.919t';
+  r.sampleNo='YP-JZ-202611-GJJ-053';
+  r.specimens=[{key:uid('sp'),subNo:'1',yield:455,tensile:625,agt:12.3,a:''},{key:uid('sp'),subNo:'2',yield:455,tensile:625,agt:11.7,a:''}];
+  r.bends=[{key:uid('bd'),subNo:'6',result:'无裂纹'},{key:uid('bd'),subNo:'7',result:'无裂纹'}];
+  r.weight={ subNos:'1、2、3、4、5', mode:'direct', deviation:-2.3, lengthsText:'', actualMass:'' };
+  r.signDate='2026-11-11';
+  return r;
+}
+
+/* ============ 四、计算与判定 ============ */
+function getProfile(r) {
+  var key = WEIGHT_LIMITS[r.standardKey] ? r.standardKey : STANDARD_CURRENT;
+  var grade = GRADE_SPECS[r.grade] ? r.grade : 'HRB400E', g = GRADE_SPECS[grade];
+  var d = Number(r.diameter) || 32;
+  var rules = WEIGHT_LIMITS[key], rule = rules.filter(function(x){ return d>=x.min && d<=x.max; })[0] || {limit:NaN,clause:'公称直径超出 6~50mm 适用范围',caution:''};
+  var a = g.a;
+  if (a !== null && r.applyDiameterReduction) { if (d>=28 && d<=40) a -= 1; else if (d>40) a -= 2; }
+  var info = STANDARDS.filter(function(s){ return s.key===key; })[0] || STANDARDS[0];
+  return { standardKey:key, info:info, grade:grade, diameter:d, seismic:g.seismic, rel:g.rel, rm:g.rm, a:a, agt:g.agt,
+    minRatio:g.seismic?1.25:null, maxYieldRatio:g.seismic?1.30:null, bendReq:g.seismic?'无裂纹':null,
+    weightLimit:rule.limit, weightClause:rule.clause, weightCaution:rule.caution||'', unitMass:THEORETICAL_MASS[d]||null };
+}
+function computeWeightDeviation(w, d) {
+  var unit = THEORETICAL_MASS[Number(d)];
+  var lens = String(w.lengthsText||'').split(/[,，\s]+/).map(Number).filter(function(n){ return isFinite(n)&&n>0; });
+  var actual = Number(w.actualMass);
+  if (!unit || !lens.length || !isFinite(actual) || actual<=0) return null;
+  var totalM = lens.reduce(function(a,b){ return a+b; },0)/1000, theoretical = totalM*unit;
+  return { deviation: roundToStep((actual-theoretical)/theoretical*100, ROUNDING.weight), theoretical:Number(theoretical.toFixed(3)),
+    totalM:Number(totalM.toFixed(3)), count:lens.length, unit:unit };
+}
+function effectiveWeight(r) {
+  var w = r.weight || {};
+  if (w.mode==='measured') { var c = computeWeightDeviation(w, r.diameter); return c ? c.deviation : ''; }
+  return w.deviation;
+}
+/* ===== 力值 → 强度换算 =====
+   R(MPa) = F(N) / S(mm²)。力值单位、面积数值与单位、修约间隔均由用户提供或明确选择。
+   任一项缺失就返回 null：不换算、不判定、不推断；未给修约间隔时保留 2 位小数且不修约。 */
+function nominalAreaFromDiameter(d) {
+  var n = Number(d); return (isFinite(n) && n>0) ? Math.PI*n*n/4 : null;
+}
+function forceToStress(force, area, forceUnit, areaUnit, roundingStep) {
+  var f = toNum(force), a = toNum(area);
+  if (f===null || a===null || a<=0) return null;
+  var fu = String(forceUnit||'').trim().toLowerCase();
+  var au = String(areaUnit||'').trim().toLowerCase();
+  var ff = (fu==='kn'||fu==='千牛') ? 1000 : (fu==='n'||fu==='牛') ? 1 : null;
+  var af = (au==='mm²'||au==='mm2'||au==='mm^2'||au==='平方毫米') ? 1
+         : (au==='cm²'||au==='cm2'||au==='cm^2'||au==='平方厘米') ? 100 : null;
+  if (ff===null || af===null) return null;
+  var raw = f*ff/(a*af);
+  var step = toNum(roundingStep), useStep = step!==null && step>0;
+  var val = useStep ? roundToStep(raw, step) : Number(raw.toFixed(2));
+  return { raw:Number(raw.toFixed(4)), value:val, text:fmt(val, useStep?step:0.01),
+    force:f, forceUnit:String(forceUnit||''), area:a, areaUnit:String(areaUnit||''),
+    factor:ff, areaFactor:af, step:useStep?step:null,
+    formula:'R = F × '+ff+' ÷ (S × '+af+')' };
+}
+function forceCfg(r) {
+  var f = r.forceCalc || {};
+  return { enabled:!!f.enabled, unit:f.unit||'kN', areaMode:f.areaMode||'shared',
+    sharedArea:f.sharedArea||'', areaUnit:f.areaUnit||'mm²', rounding:f.rounding||'', areaSource:f.areaSource||'' };
+}
+function specimenArea(r, s) {
+  var c = forceCfg(r); return c.areaMode==='each' ? s.area : c.sharedArea;
+}
+function specimenStrength(r, s, kind) {
+  var c = forceCfg(r);
+  if (!c.enabled) { var v=s[kind]; return { value:v, text:String(v===''||v===undefined||v===null?'':v), conv:null }; }
+  var f = kind==='yield' ? s.yieldForce : s.tensileForce;
+  var conv = forceToStress(f, specimenArea(r,s), c.unit, c.areaUnit, c.rounding);
+  return conv ? { value:conv.value, text:conv.text, conv:conv } : { value:'', text:'', conv:null };
+}
+function collectBuiltinConversions(r) {
+  var out = [];
+  if (!forceCfg(r).enabled) return out;
+  (r.specimens||[]).forEach(function(s){
+    [['yield','屈服强度','yieldForce'],['tensile','抗拉强度','tensileForce']].forEach(function(k){
+      var st = specimenStrength(r,s,k[0]);
+      if (st.conv) out.push({ item:k[1], subNo:s.subNo, force:s[k[2]], conv:st.conv });
+    });
+  });
+  return out;
+}
+function judgeNum(v, op, limit) { var n = toNum(v); if (n===null) return null; return op==='ge' ? n>=limit : n<=limit; }
+/* 解析「合格限值或范围」：只识别明确给出的比较方向；纯数字不推断方向 */
+function parseSpec(text) {
+  if (text === undefined || text === null || String(text).trim() === '') return null;
+  var raw = String(text).trim();
+  var s = raw.replace(/\s+/g,'').replace(/≥/g,'>=').replace(/≤/g,'<=').replace(/～/g,'~').replace(/，/g,',');
+  var m;
+  if ((m = s.match(/^>=(.+)$/))) return { type:'ge', a:Number(m[1]), text:raw };
+  if ((m = s.match(/^<=(.+)$/))) return { type:'le', a:Number(m[1]), text:raw };
+  if ((m = s.match(/^>(.+)$/)))  return { type:'gt', a:Number(m[1]), text:raw };
+  if ((m = s.match(/^<(.+)$/)))  return { type:'lt', a:Number(m[1]), text:raw };
+  if ((m = s.match(/^±(.+)$/)))  return { type:'abs', a:Number(m[1]), text:raw };
+  if ((m = s.match(/^\[?(-?\d+(?:\.\d+)?)[~,](-?\d+(?:\.\d+)?)\]?$/))) return { type:'range', a:Number(m[1]), b:Number(m[2]), text:raw };
+  if (/^-?\d+(\.\d+)?$/.test(s)) return { type:'unknown', text:raw };
+  return { type:'equal', text:raw };
+}
+function judgeBySpec(sp, value) {
+  if (!sp) return null;
+  if (sp.type === 'equal') return value ? String(value) === sp.text : null;
+  var n = toNum(value);
+  if (n === null || !isFinite(sp.a)) return null;
+  if (sp.type === 'ge') return n >= sp.a;
+  if (sp.type === 'le') return n <= sp.a;
+  if (sp.type === 'gt') return n > sp.a;
+  if (sp.type === 'lt') return n < sp.a;
+  if (sp.type === 'abs') return Math.abs(n) <= sp.a;
+  if (sp.type === 'range') return isFinite(sp.b) && n >= sp.a && n <= sp.b;
+  return null;
+}
+/* 指标名称 → 编码：仅用于把「合格限值」对应到同名检测项，不附带任何标准数值 */
+function toCode(k) {
+  var s = String(k===undefined||k===null?'':k).replace(/[（(][^)）]*[)）]/g,'').replace(/\s+/g,'');
+  var low = s.toLowerCase();
+  if (low==='agt'||s.indexOf('最大力总延伸率')>=0||s.indexOf('总延伸率')>=0) return 'agt';
+  if (s.indexOf('强屈比')>=0||low.indexOf('strengthratio')>=0||low.indexOf('r°m/r°el')>=0) return 'strengthRatio';
+  if (s.indexOf('屈屈比')>=0||low.indexOf('yieldratio')>=0||low.indexOf('r°el/rel')>=0) return 'yieldRatio';
+  if (s.indexOf('断后伸长率')>=0||low==='elongation'||low==='a') return 'elongation';
+  if (s.indexOf('反向弯曲')>=0||s.indexOf('弯曲')>=0||low==='bend') return 'bend';
+  if (s.indexOf('重量偏差')>=0||low==='weight') return 'weight';
+  if (s.indexOf('屈服')>=0||low==='yield'||low==='rel') return 'yield';
+  if (s.indexOf('抗拉')>=0||s.indexOf('最大力')>=0||low==='tensile'||low==='rm') return 'tensile';
+  return low || s;
+}
+/* 「仅按提供限值」模式：检测项目、实测值、单位、限值全部来自导入数据；
+   不读取内置指标库数值，也不沿用示例数据。信息不足一律列「需补充」且不作总体判定。 */
+function buildProvidedTable(r) {
+  var p = getProfile(r), specs = r.providedSpecs || {};
+  var items = Array.isArray(r.customItems) ? r.customItems : [];
+  var groups = [], missing = [], weightValue = '', allConvs = [];
+  if (!items.length) missing.push('未提供任何检测项目与实测值（请导入「检测数据」）');
+  items.forEach(function(it, idx) {
+    if (!it || typeof it !== 'object') return;
+    var code = it.code || toCode(it.name) || ('item'+(idx+1));
+    var name = String(it.name || code), unit = String(it.unit || ''), method = String(it.method || '');
+    var rawSpec = (it.spec!==undefined && it.spec!==null && String(it.spec).trim()!=='') ? it.spec : specs[code];
+    if (rawSpec===undefined || rawSpec===null || String(rawSpec).trim()==='') {
+      if (specs[name]!==undefined) rawSpec = specs[name];
+      else if (specs[it.name]!==undefined) rawSpec = specs[it.name];
+    }
+    var sp = parseSpec(rawSpec), usable = !!(sp && sp.type!=='unknown');
+    var rows = (Array.isArray(it.values) ? it.values : []).map(function(v, i) {
+      var val = (v && typeof v==='object') ? (v.value!==undefined ? v.value : '') : v;
+      var subNo = (v && typeof v==='object' && v.subNo!==undefined) ? v.subNo : String(i+1);
+      return { subNo:String(subNo===undefined||subNo===null?'':subNo), value:val,
+        text:(val===undefined||val===null)?'':String(val) };
+    });
+    if (!rows.length) rows = [{ subNo:'', value:'', text:'' }];
+    /* 力值 → 强度：面积或单位不全时不换算、不判定，逐项列出需补充内容 */
+    var conv = it.conversion || null, convMissing = [], convRecords = [];
+    if (conv) {
+      if (String(conv.forceUnit).trim()==='') convMissing.push(name+'（未提供力值单位，如 kN / N）');
+      if (String(conv.areaUnit).trim()==='') convMissing.push(name+'（未提供面积单位，如 mm² / cm²）');
+      var okAll = convMissing.length===0;
+      rows.forEach(function(row, ri){
+        if (!okAll) return;
+        var a = conv.areas.length>1 ? conv.areas[ri] : conv.areas[0];
+        if (a===undefined || a===null || String(a).trim()==='') {
+          convMissing.push(name+' 子编号 '+row.subNo+'（未提供横截面积）'); okAll=false; return;
+        }
+        var c = forceToStress(row.value, a, conv.forceUnit, conv.areaUnit, conv.rounding);
+        if (!c) { convMissing.push(name+' 子编号 '+row.subNo+'（力值 / 面积 / 单位无法换算）'); okAll=false; return; }
+        convRecords.push({ item:name, subNo:row.subNo, force:row.value, conv:c });
+      });
+      if (okAll && convRecords.length===rows.length) {
+        rows = rows.map(function(row, ri){ var c=convRecords[ri].conv; return { subNo:row.subNo, value:c.value, text:c.text, rawValue:row.value, conv:c }; });
+        unit = conv.resultUnit || 'MPa';
+        name = conv.resultName || name;
+        convRecords.forEach(function(c){ c.item=name; allConvs.push(c); });
+      } else convRecords = [];
+    }
+    convMissing.forEach(function(m){ missing.push(m); });
+    var hasAllValues = rows.every(function(x){ return String(x.value).trim()!==''; });
+    if (!usable) missing.push(name + (sp ? '（限值未明确比较方向，如 ≥400 / ≤1.30 / ±3.5）' : '（未提供合格限值或范围）'));
+    if (!hasAllValues) missing.push(name + '（未提供实测值）');
+    if (unit==='') missing.push(name + '（未提供单位）');
+    /* 四要素不齐、或换算所需信息不齐时，连单项判定都不作 */
+    var infoComplete = usable && unit!=='' && hasAllValues && (!conv || !convMissing.length);
+    var judge = infoComplete ? function(v){ return judgeBySpec(sp, v); } : function(){ return null; };
+    var passes = rows.map(function(x){ return judge(x.value); });
+    var pass = passes.some(function(x){ return x===null; }) ? null : passes.every(function(x){ return x===true; });
+    groups.push({ code:code, project:name, unit:unit, method:method, spec:usable?sp.text:'待补充', rows:rows,
+      rowCount:rows.length, verdict:pass===null?'—':(pass?'合格':'不合格'), pass:pass,
+      needSpec:!usable, infoComplete:infoComplete, conversion:conv, conversions:convRecords });
+    if (code==='weight' && weightValue==='' && rows[0].text!=='') weightValue = rows[0].text;
+  });
+  var dataRows = groups.reduce(function(a,g){ return a+g.rowCount; },0);
+  var failed = groups.filter(function(g){ return g.pass===false; }).map(function(g){ return g.project; });
+  var pending = !groups.length || missing.length>0 || groups.some(function(g){ return g.pass===null; });
+  return { profile:p, groups:groups, dataRowCount:dataRows,
+    verdict: pending?'未判定':(failed.length?'不合格':'合格'), failed:failed,
+    weightValue:weightValue, missingSpecs:missing, conversions:allConvs };
+}
+function buildTable(r) {
+  if (r.judgeSource === 'provided') return buildProvidedTable(r);
+  var p = getProfile(r), sps = r.specimens||[], bds = r.bends||[], wv = effectiveWeight(r), groups = [];
+  function push(code, project, method, spec, rows, judge) {
+    if (!rows.length) rows = [{ subNo:'', value:'', text:'' }];
+    var passes = rows.map(function(x){ return judge(x.value); });
+    var pass = passes.some(function(x){ return x===null; }) ? null : passes.every(function(x){ return x===true; });
+    groups.push({ code:code, project:project, method:method, spec:spec, rows:rows, rowCount:rows.length,
+      verdict: pass===null?'—':(pass?'合格':'不合格'), pass:pass, needSpec:false });
+  }
+  /* 力值模式下，先由 F/S 换算得到强度，再进入原有判定与比值计算 */
+  var fc = forceCfg(r), convMethod = fc.enabled ? '力值÷面积' : '';
+  function srow(s, kind) { var st = specimenStrength(r,s,kind); return { subNo:s.subNo, value:st.value, text:st.text }; }
+  var yRows = sps.map(function(s){ return srow(s,'yield'); });
+  var tRows = sps.map(function(s){ return srow(s,'tensile'); });
+  push('yield','屈服强度(MPa)',convMethod,'≥'+p.rel, yRows, function(v){ return judgeNum(v,'ge',p.rel); });
+  push('tensile','抗拉强度(MPa)',convMethod,'≥'+p.rm, tRows, function(v){ return judgeNum(v,'ge',p.rm); });
+  if (p.seismic) {
+    push('strengthRatio','R°m/R°eL','','≥'+p.minRatio.toFixed(2), yRows.map(function(row,i){ var y=toNum(row.value),t=toNum(tRows[i]&&tRows[i].value),raw=(y&&t)?t/y:null,v=raw===null?'':roundToStep(raw,ROUNDING.ratio); return {subNo:row.subNo,value:v,text:fmt(v,ROUNDING.ratio)}; }), function(v){ return judgeNum(v,'ge',p.minRatio); });
+    push('yieldRatio','R°eL/ReL','','≤'+p.maxYieldRatio.toFixed(2), yRows.map(function(row){ var y=toNum(row.value),raw=y===null?null:y/p.rel,v=raw===null?'':roundToStep(raw,ROUNDING.ratio); return {subNo:row.subNo,value:v,text:fmt(v,ROUNDING.ratio)}; }), function(v){ return judgeNum(v,'le',p.maxYieldRatio); });
+  }
+  push('agt','最大力总延伸率(%)','引伸计法','≥'+p.agt.toFixed(1), sps.map(function(s){ return {subNo:s.subNo,value:s.agt,text:String(s.agt===''?'':s.agt)}; }), function(v){ return judgeNum(v,'ge',p.agt); });
+  if (p.a !== null) push('elongation','断后伸长率A(%)','','≥'+p.a, sps.map(function(s){ return {subNo:s.subNo,value:s.a,text:String(s.a===''?'':s.a)}; }), function(v){ return judgeNum(v,'ge',p.a); });
+  if (p.seismic) push('bend','反向弯曲','',p.bendReq, bds.map(function(b){ return {subNo:b.subNo,value:b.result,text:b.result}; }), function(v){ return v?String(v)===p.bendReq:null; });
+  push('weight','重量偏差(%)','','±'+p.weightLimit, [{subNo:(r.weight&&r.weight.subNos)||'1、2、3、4、5',value:wv,text:fmt(wv,ROUNDING.weight)}], function(v){ var n=toNum(v); return n===null?null:Math.abs(n)<=p.weightLimit; });
+
+  var dataRows = groups.reduce(function(a,g){ return a+g.rowCount; },0);
+  var failed = groups.filter(function(g){ return g.pass===false; }).map(function(g){ return g.project; });
+  var pending = groups.some(function(g){ return g.pass===null; });
+  return { profile:p, groups:groups, dataRowCount:dataRows, verdict: pending?'未判定':(failed.length?'不合格':'合格'), failed:failed,
+    weightValue:wv, missingSpecs:[], conversions:collectBuiltinConversions(r) };
+}
+function buildConclusion(r, t) {
+  if (r.conclusionMode==='manual' && r.conclusion) return r.conclusion;
+  if (r.judgeSource==='provided') {
+    /* 不引用任何内置标准名称或数值，结论只反映「已提供的实测值与限值」 */
+    if (t.missingSpecs && t.missingSpecs.length)
+      return '（以下信息需补充后方可作出判定：'+t.missingSpecs.join('；')+'。已提供限值的项目单项判定见上表，本报告暂不作总体结论。）';
+    if (t.verdict==='不合格') return '该样品所检'+t.failed.join('、')+'不符合所给定的合格限值要求，其余所检参数符合所给定限值要求。以下空白。';
+    if (t.verdict==='合格') return '该样品所检参数符合所给定的合格限值要求。以下空白。';
+    return '（检测数据尚未填写完整，暂不生成结论）';
+  }
+  var std = t.profile.info.key + t.profile.info.fullName;
+  if (t.verdict==='未判定') return '（检测数据尚未填写完整，暂不生成结论）';
+  if (t.verdict==='不合格') return '该样品所检'+t.failed.join('、')+'不符合'+std+'中的技术要求，其余所检参数符合该标准要求。以下空白。';
+  return '该样品所检参数符合'+std+'中的技术要求。以下空白。';
+}
+function buildDisplay(r, t) {
+  /* 样品信息只拼接实际提供的字段：按提供限值模式下未给的牌号/直径不写进报告 */
+  var si = [], gradeDia = (r.grade||'') + (r.diameter ? (r.grade?' φ':'φ')+r.diameter+'mm' : '');
+  if (r.sample.name) si.push('样品名称：'+r.sample.name);
+  if (r.sample.no) si.push('样品编号：'+r.sample.no);
+  if (r.sample.quantity) si.push('样品数量：'+r.sample.quantity);
+  if (r.sample.state) si.push('样品状态：'+r.sample.state);
+  if (gradeDia) si.push('规格型号：'+gradeDia);
+  return {
+    reportNo:r.reportNo, sampleNo:r.sampleNo, labName:r.labName, formCode:r.formCode, title:r.title,
+    pageText:'第'+r.pageNo+'页，共'+r.pageTotal+'页',
+    client:r.client, projectName:r.projectName, entrustDateCn:cnDate(r.entrustDate), entrustNo:r.entrustNo,
+    testCategory:r.testCategory, testDateCn:cnDate(r.testDate), projectPart:r.projectPart,
+    sampleInfo:si.length ? si.join('；')+'。' : '',
+    /* 按提供限值模式下，判定依据留空即留空，绝不回落到内置标准号 */
+    testBasis:r.testBasis, testMethod:r.testMethod,
+    judgeBasis:r.judgeBasis || (r.judgeSource==='provided' ? '' : r.standardKey),
+    witnessUnit:r.witnessUnit, witnessPerson:r.witnessPerson, instruments:r.instruments,
+    specModel:(r.grade && r.diameter) ? r.grade+' 直径'+r.diameter+'mm' : gradeDia,
+    batchNo:r.batchNo, manufacturer:r.manufacturer,
+    representQty:r.representQty, factoryNo:r.factoryNo||'/',
+    conclusion:buildConclusion(r,t), remark:r.remark||'/', statement:r.statement,
+    address:r.address, phone:r.phone, tester:r.tester, reviewer:r.reviewer, approver:r.approver,
+    signDateCn:cnDate(r.signDate)
+  };
+}
+function validate(r, t) {
+  var errors=[], warnings=[];
+  var provided = r.judgeSource==='provided';
+  var req = provided
+    ? [['reportNo','报告编号'],['labName','检测单位'],['client','施工/委托单位'],['projectName','工程名称'],['entrustDate','委托日期'],['testDate','试验日期']]
+    : [['reportNo','报告编号'],['labName','检测单位'],['client','施工/委托单位'],['projectName','工程名称'],['entrustDate','委托日期'],['testDate','试验日期'],['grade','牌号'],['diameter','公称直径'],['batchNo','批号'],['sampleNo','试样编号'],['judgeBasis','判定依据']];
+  req.forEach(function(p){ if (String(r[p[0]]||'').trim()==='') errors.push(p[1]+'为必填项'); });
+  if (provided) {
+    /* 该模式下不使用任何内置经验范围或标准限值，只提示「缺什么」 */
+    if (String(r.judgeBasis||'').trim()==='') warnings.push('【需补充】判定依据（请在导入数据中提供）');
+    (t.missingSpecs||[]).forEach(function(m){ warnings.push('【需补充】'+m); });
+    t.failed.forEach(function(n){ warnings.push('【不符合】'+n+' 不符合所给定的合格限值'); });
+    return { valid:errors.length===0, errors:errors, warnings:warnings };
+  }
+  var fc = forceCfg(r);
+  (r.specimens||[]).forEach(function(s,i){
+    if (fc.enabled) {
+      [['yieldForce','屈服力'],['tensileForce','最大力']].forEach(function(g){
+        if (String(s[g[0]]||'').trim()==='') errors.push('试样子编号 '+s.subNo+' 的'+g[1]+'未填写');
+      });
+      var a = specimenArea(r,s);
+      if (String(a||'').trim()==='') errors.push('试样子编号 '+s.subNo+' 的横截面积未填写');
+      else if (String(s.yieldForce||'').trim()!=='' && String(s.tensileForce||'').trim()!=='') {
+        if (!forceToStress(s.yieldForce,a,fc.unit,fc.areaUnit,fc.rounding) ||
+            !forceToStress(s.tensileForce,a,fc.unit,fc.areaUnit,fc.rounding))
+          errors.push('试样子编号 '+s.subNo+' 无法换算强度：请确认力值单位、面积单位与面积数值');
+      }
+      if (String(s.agt||'').trim()==='') errors.push('试样子编号 '+s.subNo+' 的最大力总延伸率未填写');
+    } else {
+      ['yield','tensile','agt'].forEach(function(k){ if (String(s[k]||'').trim()==='') errors.push('试样子编号 '+s.subNo+' 的'+({yield:'屈服强度',tensile:'抗拉强度',agt:'最大力总延伸率'})[k]+'未填写'); });
+    }
+  });
+  if (String(effectiveWeight(r)).trim()==='') errors.push('重量偏差未填写');
+  t.failed.forEach(function(n){ warnings.push('【不符合】'+n+' 超出 '+t.profile.standardKey+' 技术指标'); });
+  if (t.profile.weightCaution) warnings.push('【需复核】'+t.profile.weightCaution);
+  var ranges=[['屈服强度','yield',100,1000],['抗拉强度','tensile',100,1200],['最大力总延伸率','agt',0,60],['断后伸长率','a',0,80]];
+  (r.specimens||[]).forEach(function(s){ ranges.forEach(function(g){ var v=toNum(s[g[1]]); if (v!==null && (v<g[2]||v>g[3])) warnings.push('【数值异常】试样 '+s.subNo+' 的'+g[0]+'='+v+'，超出常见范围 '+g[2]+'~'+g[3]); }); var y=toNum(s.yield),tm=toNum(s.tensile); if (y!==null&&tm!==null&&tm<y) warnings.push('【数值异常】试样 '+s.subNo+' 抗拉强度小于屈服强度'); });
+  var wv=toNum(effectiveWeight(r)); if (wv!==null&&Math.abs(wv)>20) warnings.push('【数值异常】重量偏差 '+wv+'% 绝对值超过 20%');
+  return { valid:errors.length===0, errors:errors, warnings:warnings };
+}
+
+/* ============ 五、报告版式渲染 ============ */
+/* 力值 → 强度换算明细附页：原始力值、面积、单位、未修约值、修约间隔、报告值，便于复核 */
+function renderForcePage(r, t) {
+  if (!r || !r.includeForceDetail) return '';
+  var cs = (t && t.conversions) || [];
+  if (!cs.length) return '';
+  var cfg = forceCfg(r);
+  var h = '<div class="conv-page"><h2>附件：力值 → 强度换算明细</h2>';
+  h += '<div class="conv-note">报告编号：'+esc(r.reportNo)+'　样品编号：'+esc(r.sampleNo)+'<br>'+
+    '换算关系：R(MPa) = F(N) ÷ S(mm²)，即 强度 = 力值 ÷ 横截面积；力值与面积取自试验原始记录或本次导入数据。<br>'+
+    '面积来源：'+esc(cfg.areaSource||'按导入数据逐项提供')+'；未指定修约间隔时保留 2 位小数、不修约。<br>'+
+    '主表「检测结果」为换算后的强度值，本页仅记录换算过程。</div>';
+  h += '<table><colgroup><col style="width:12%"><col style="width:9%"><col style="width:11%"><col style="width:9%">'+
+       '<col style="width:11%"><col style="width:9%"><col style="width:14%"><col style="width:10%"><col style="width:15%"></colgroup>';
+  h += '<tr><th>检测项目</th><th>试样子编号</th><th>原始力值</th><th>力值单位</th><th>横截面积</th><th>面积单位</th><th>换算未修约值</th><th>修约间隔</th><th>报告强度值</th></tr>';
+  cs.forEach(function(c){
+    var v = c.conv;
+    h += '<tr><td>'+esc(c.item)+'</td><td>'+esc(c.subNo)+'</td><td>'+esc(c.force)+'</td><td>'+esc(v.forceUnit)+'</td>'+
+      '<td>'+esc(v.area)+'</td><td>'+esc(v.areaUnit)+'</td><td>'+esc(v.raw)+'</td>'+
+      '<td>'+esc(v.step===null?'不修约':v.step)+'</td><td>'+esc(v.text)+'</td></tr>';
+  });
+  return h + '</table></div>';
+}
+/* 原始凭证影像附页：仅在勾选「打印/导出时包含」时生成，打印与 Word 导出自动带上 */
+function renderPhotoPages(r) {
+  if (!r || !r.includePhotos || !Array.isArray(r.photos) || !r.photos.length) return '';
+  return r.photos.map(function(p, i){
+    return '<div class="photo-page"><h2>附件：原始凭证影像（'+(i+1)+' / '+r.photos.length+'）</h2>'+
+      '<div class="photo-meta">报告编号：'+esc(r.reportNo)+'　样品编号：'+esc(r.sampleNo)+'　凭证名称：'+esc(p.name||'—')+'　采集时间：'+esc(p.time||'—')+'</div>'+
+      '<img src="'+esc(p.data)+'" alt="'+esc(p.name||'原始凭证')+'">'+
+      '<div class="photo-cap">说明：本影像为原始记录照片，未经文字识别与数值修改，仅作凭证存档；报告数据以委托方提供并导入的信息为准。</div></div>';
+  }).join('');
+}
+function renderReport(d, t, r) {
+  var h = '';
+  h += '<div class="rp-meta">'+esc(d.pageText)+'<br>'+esc(d.formCode)+'</div>';
+  h += '<div class="rp-title">'+esc(d.title)+'</div>';
+  h += '<div class="rp-header"><span>检测单位名称（专用章）：'+esc(d.labName)+'</span><span>报告编号：'+esc(d.reportNo)+'</span></div>';
+  h += '<table><colgroup><col style="width:13%"><col style="width:42%"><col style="width:12%"><col style="width:33%"></colgroup>';
+  function infoRow(cells, tall) { return '<tr class="info-row'+(tall?' tall':'')+'">'+cells.map(function(c){ return '<td class="'+(c[2]||'')+'"'+(c[3]>1?' colspan="'+c[3]+'"':'')+'>'+esc(c[0])+'</td>'; }).join('')+'</tr>'; }
+  h += infoRow([['施工/委托单位','','lbl'],[d.client,'','left'],['工程名称','','lbl'],[d.projectName,'','left']], true);
+  h += infoRow([['委托日期','','lbl'],[d.entrustDateCn,'','ctr'],['委托编号','','lbl'],[d.entrustNo,'','ctr']]);
+  h += infoRow([['检测类别','','lbl'],[d.testCategory,'','ctr'],['试验日期','','lbl'],[d.testDateCn,'','ctr']]);
+  h += infoRow([['工程部位/用途','','lbl'],[d.projectPart,'','left',3]]);
+  h += infoRow([['样品信息','','lbl'],[d.sampleInfo,'','left',3]], true);
+  h += infoRow([['检测依据','','lbl'],[d.testBasis,'','left'],['判定依据','','lbl'],[d.judgeBasis,'','ctr']], true);
+  h += infoRow([['检测方法','','lbl'],[d.testMethod,'','left',3]], true);
+  h += infoRow([['见证单位','','lbl'],[d.witnessUnit,'','left'],['见证人/电话','','lbl'],[d.witnessPerson,'','ctr']]);
+  h += infoRow([['主要仪器设备名称及编号','','lbl'],[d.instruments,'','left',3]], true);
+  h += infoRow([['规格型号','','lbl'],[d.specModel,'','ctr'],['批号','','lbl'],[d.batchNo,'','ctr']]);
+  h += infoRow([['生产厂家','','lbl'],[d.manufacturer,'','left'],['代表数量','','lbl'],[d.representQty,'','ctr']]);
+  h += infoRow([['出厂编号','','lbl'],[d.factoryNo,'','ctr'],['','','',2]]);
+  h += '</table>';
+
+  h += '<div class="dt-wrap"><table><colgroup><col style="width:13%"><col style="width:7%"><col style="width:25%"><col style="width:9%"><col style="width:12%"><col style="width:16%"><col style="width:18%"></colgroup>';
+  h += '<tr class="dt-head"><th>试样编号</th><th>试样子编号</th><th colspan="2">检测项目</th><th>技术指标</th><th>检测结果</th><th>结果判定</th></tr>';
+  t.groups.forEach(function(g, gi) {
+    g.rows.forEach(function(row, ri) {
+      h += '<tr class="dt-row">';
+      if (gi===0 && ri===0) h += '<td rowspan="'+t.dataRowCount+'" class="ctr">'+esc(d.sampleNo)+'</td>';
+      h += '<td class="ctr">'+esc(row.subNo)+'</td>';
+      if (ri===0) {
+        var proj = g.unit ? g.project+'('+g.unit+')' : g.project;
+        h += '<td rowspan="'+g.rowCount+'" class="ctr">'+esc(proj)+'</td>';
+        h += '<td rowspan="'+g.rowCount+'" class="ctr">'+esc(g.method)+'</td>';
+        h += '<td rowspan="'+g.rowCount+'" class="ctr">'+esc(g.spec)+'</td>';
+      }
+      h += '<td class="ctr">'+esc(row.text)+'</td>';
+      if (ri===0) h += '<td rowspan="'+g.rowCount+'" class="ctr'+(g.pass===false?' fail-text':'')+'">'+esc(g.verdict)+'</td>';
+      h += '</tr>';
+    });
+  });
+  for (var i=0;i<2;i++) { h += '<tr class="dt-row">'; for (var j=0;j<7;j++) h += '<td></td>'; h += '</tr>'; }
+  h += '</table><div class="blank-mark">以下空白</div></div>';
+
+  h += '<table><tr><td class="tail tail-conclusion">检测结论：'+esc(d.conclusion)+'</td></tr>';
+  h += '<tr><td class="tail">备注：'+esc(d.remark)+'</td></tr>';
+  h += '<tr><td class="tail tail-statement">附加声明：'+esc(d.statement)+'</td></tr>';
+  h += '<tr><td class="tail tail-addr" style="padding:0"><div style="padding:5px 7px">机构地址及检测场所：'+esc(d.address)+'</div><div style="padding:5px 7px">联系电话：'+esc(d.phone)+'</div></td></tr></table>';
+  h += '<div class="sign-row"><span>检测：'+esc(d.tester)+'</span><span>审核：'+esc(d.reviewer)+'</span><span>批准：'+esc(d.approver)+'</span><span>日期：'+esc(d.signDateCn)+'</span><span>'+esc(d.pageText)+'</span></div>';
+  var rr = r || state.current;
+  return h + renderForcePage(rr, t) + renderPhotoPages(rr);
+}
+
+/* ============ 六、表单 ============ */
+var FORM = [
+  { title:'一、报告头与判定依据', open:true, fields:[
+    { l:'判定标准', p:'standardKey', t:'select', opts:'standards' },
+    { l:'报告编号', p:'reportNo', req:1 },
+    { l:'检测单位', p:'labName', req:1 },
+    { l:'表格编号', p:'formCode' },
+    { l:'检测依据', p:'testBasis', t:'textarea' },
+    { l:'检测方法', p:'testMethod', t:'textarea' },
+    { l:'判定依据', p:'judgeBasis', req:1 }
+  ]},
+  { title:'二、工程与委托信息', fields:[
+    { l:'施工/委托单位', p:'client', t:'textarea', req:1 },
+    { l:'工程名称', p:'projectName', t:'textarea', req:1 },
+    { l:'委托日期', p:'entrustDate', t:'date', req:1 },
+    { l:'委托编号', p:'entrustNo' },
+    { l:'检测类别', p:'testCategory' },
+    { l:'试验日期', p:'testDate', t:'date', req:1 },
+    { l:'工程部位/用途', p:'projectPart' }
+  ]},
+  { title:'三、样品、见证与仪器', fields:[
+    { l:'样品名称', p:'sample.name' },
+    { l:'样品编号', p:'sample.no' },
+    { l:'样品数量', p:'sample.quantity', t:'textarea' },
+    { l:'样品状态', p:'sample.state', t:'textarea' },
+    { l:'见证单位', p:'witnessUnit' },
+    { l:'见证人/电话', p:'witnessPerson' },
+    { l:'主要仪器设备', p:'instruments', t:'textarea' }
+  ]},
+  { title:'四、规格与批号', open:true, fields:[
+    { l:'牌号', p:'grade', t:'select', opts:'grades', req:1 },
+    { l:'公称直径', p:'diameter', t:'select', opts:'diameters', req:1 },
+    { l:'批号', p:'batchNo', req:1 },
+    { l:'生产厂家', p:'manufacturer' },
+    { l:'代表数量', p:'representQty' },
+    { l:'出厂编号', p:'factoryNo' },
+    { l:'试样编号', p:'sampleNo', req:1 },
+    { l:'大直径 A 值折减', p:'applyDiameterReduction', t:'check', hint:'依据 GB/T 1499.2-2018 第 7.4.2 条：28~40mm 时 A 可降 1%，>40mm 可降 2%。仅对非 E 牌号的 A 项生效，默认关闭。' }
+  ]},
+  { title:'六、结论、备注与签章', open:true, fields:[
+    { l:'结论模式', p:'conclusionMode', t:'select', opts:'conclusionModes' },
+    { l:'检测结论', p:'conclusion', t:'textarea', hint:'结论模式为「自动生成」时本项不生效，预览区显示自动生成的结论。' },
+    { l:'备注', p:'remark' },
+    { l:'附加声明', p:'statement', t:'textarea' },
+    { l:'机构地址', p:'address', t:'textarea' },
+    { l:'联系电话', p:'phone' },
+    { l:'检测', p:'tester' },
+    { l:'审核', p:'reviewer' },
+    { l:'批准', p:'approver' },
+    { l:'签发日期', p:'signDate', t:'date' }
+  ]}
+];
+function selectOpts(kind) {
+  if (kind==='standards') return STANDARDS.map(function(s){ return [s.key,s.label]; });
+  if (kind==='grades') {
+    var g = GRADE_KEYS.map(function(x){ return [x,x]; });
+    if (state.current && state.current.grade && GRADE_KEYS.indexOf(state.current.grade)<0) g.push([state.current.grade,state.current.grade]);
+    return [['','（未填写 / 按导入值）']].concat(g);
+  }
+  if (kind==='diameters') {
+    var d = DIAMETERS.map(function(x){ return [String(x),'φ'+x+'mm']; });
+    if (state.current && state.current.diameter && DIAMETERS.indexOf(Number(state.current.diameter))<0) d.push([String(state.current.diameter),'φ'+state.current.diameter+'mm']);
+    return [['','（未填写 / 按导入值）']].concat(d);
+  }
+  if (kind==='conclusionModes') return [['auto','自动生成结论'],['manual','手工填写']];
+  return [];
+}
+function renderForm() {
+  var h = '';
+  FORM.forEach(function(sec, si) {
+    h += '<details class="fgroup" data-sec="'+si+'"'+(sec.open?' open':'')+'><summary>'+esc(sec.title)+'</summary><div class="fbody">';
+    sec.fields.forEach(function(f) {
+      var v = getPath(state.current, f.p);
+      h += '<div class="frow"><label>'+esc(f.l)+(f.req?' <span class="req">*</span>':'')+'</label>';
+      if (f.t==='textarea') h += '<textarea data-path="'+f.p+'">'+esc(v)+'</textarea>';
+      else if (f.t==='select') h += '<select data-path="'+f.p+'">'+selectOpts(f.opts).map(function(o){ return '<option value="'+esc(o[0])+'"'+(String(v)===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select>';
+      else if (f.t==='check') h += '<input type="checkbox" data-path="'+f.p+'" style="flex:0;width:16px;height:16px;margin-top:5px"'+(v?' checked':'')+'>';
+      else if (f.t==='date') h += '<input type="date" data-path="'+f.p+'" value="'+esc(v)+'">';
+      else h += '<input type="text" data-path="'+f.p+'" value="'+esc(v)+'">';
+      h += '</div>';
+      if (f.hint) h += '<div class="fhint">'+esc(f.hint)+'</div>';
+    });
+    h += '</div></details>';
+    if (si===3) h += renderTestSection();
+  });
+  h += '<details class="fgroup"><summary>七、判定依据与假设</summary><div class="fbody" id="assumeBox"></div></details>';
+  $('#formPanel').innerHTML = h;
+  renderAssumptions();
+  renderDynamic();
+  refreshPreview();
+}
+function renderTestSection() {
+  var s = '';
+  s += '<details class="fgroup" open><summary>五、检测数据与实时判定</summary><div class="fbody">';
+  s += '<div id="verdictBox"></div>';
+  if (state.current.judgeSource==='provided') {
+    /* 该模式下检测值只能来自导入数据，不提供手填框，避免写入未提供的信息 */
+    s += '<div class="fhint">当前为「仅按提供限值」模式：检测项目、实测值、单位、合格限值全部来自「拍照 / 导入数据」中的 JSON，此处不提供手填检测值。需修改请重新导入；缺少的信息会在下方列出。</div>';
+    s += '<div class="fhint" style="font-weight:600;color:#1f3a5f;margin-top:8px">实时判定明细</div><div id="groupTable"></div>';
+    s += '<div id="msgBox"></div></div></details>';
+    return s;
+  }
+  s += '<div class="fhint" style="font-weight:600;color:#1f3a5f;margin-top:2px">试验机原始力值 → 强度换算</div>';
+  s += '<div class="fhint">试验机只出力值时选「录入力值 + 面积」，程序按 R = F ÷ S 换算强度写入报告。面积数值、力值单位、面积单位、修约间隔都在此明确给出；缺任一项就不换算、不判定。</div>';
+  s += '<div class="seg"><button data-fmode="strength">直接录入强度</button><button data-fmode="force">录入力值 + 面积（自动算强度）</button></div>';
+  s += '<div id="forceCfgInputs"></div><div id="forceCalcBox"></div>';
+  s += '<div class="fhint" style="font-weight:600;color:#1f3a5f;margin-top:8px">拉伸试样（强屈比、屈屈比自动计算）</div><div id="specimenBox"></div>';
+  s += '<button class="add-btn" id="addSp">＋ 增加拉伸试样</button>';
+  s += '<div class="fhint" style="font-weight:600;color:#1f3a5f;margin-top:10px">反向弯曲（带 E 牌号必检）</div><div id="bendBox"></div>';
+  s += '<button class="add-btn" id="addBd">＋ 增加反向弯曲试样</button>';
+  s += '<div class="fhint" style="font-weight:600;color:#1f3a5f;margin-top:10px">重量偏差（%）</div>';
+  s += '<div class="seg"><button data-wmode="direct">直接录入报告值</button><button data-wmode="measured">由测量值计算</button></div>';
+  s += '<div id="weightBox"></div>';
+  s += '<div id="calcBox"></div>';
+  s += '<div class="fhint" style="font-weight:600;color:#1f3a5f;margin-top:10px">实时判定明细</div><div id="groupTable"></div>';
+  s += '<div id="msgBox"></div>';
+  s += '</div></details>';
+  return s;
+}
+function renderDynamic() {
+  var r = state.current;
+  if (r.judgeSource==='provided') { updateWeightUI(); return; }
+  var fc = forceCfg(r);
+  $('#specimenBox').innerHTML = r.specimens.map(function(s,i){
+    var fields = fc.enabled
+      ? spInput(i,'yieldForce','屈服力 '+fc.unit,s.yieldForce)+spInput(i,'tensileForce','最大力 '+fc.unit,s.tensileForce)+
+        (fc.areaMode==='each' ? spInput(i,'area','横截面积 '+fc.areaUnit,s.area) : '')+
+        spInput(i,'agt','Agt %（引伸计法）',s.agt)+spInput(i,'a','断后伸长率 A %',s.a)
+      : spInput(i,'yield','屈服强度 MPa',s.yield)+spInput(i,'tensile','抗拉强度 MPa',s.tensile)+
+        spInput(i,'agt','Agt %（引伸计法）',s.agt)+spInput(i,'a','断后伸长率 A %',s.a);
+    return '<div class="sp-card"><div class="sp-head">子编号 <input data-sp="'+i+'" data-k="subNo" value="'+esc(s.subNo)+'"><span class="spacer"></span><button data-delsp="'+i+'">删除</button></div>'+
+      '<div class="sp-grid">'+fields+'</div></div>';
+  }).join('');
+  $('#bendBox').innerHTML = r.bends.map(function(b,i){
+    return '<div class="sp-card"><div class="sp-head">子编号 <input data-bd="'+i+'" data-k="subNo" value="'+esc(b.subNo)+'"><span class="spacer"></span><button data-delbd="'+i+'">删除</button></div>'+
+      '<div class="sp-grid"><label style="grid-column:span 2">试验结果 <select data-bd="'+i+'" data-k="result">'+['无裂纹','有裂纹','未检'].map(function(o){ return '<option'+(b.result===o?' selected':'')+'>'+o+'</option>'; }).join('')+'</select></label></div></div>';
+  }).join('');
+  var w = r.weight;
+  var wh = '<div class="frow"><label>试样子编号</label><input data-w="subNos" value="'+esc(w.subNos)+'"></div>';
+  if (w.mode==='direct') wh += '<div class="frow"><label>重量偏差 %</label><input data-w="deviation" value="'+esc(w.deviation)+'" placeholder="如 -2.3，允许负值"></div>';
+  else wh += '<div class="frow"><label>各试样长度 mm</label><input data-w="lengthsText" value="'+esc(w.lengthsText)+'" placeholder="550,550,550,550,550"></div>'+
+             '<div class="frow"><label>实测总重 kg</label><input data-w="actualMass" value="'+esc(w.actualMass)+'" placeholder="如 16.953"></div>';
+  $('#weightBox').innerHTML = wh;
+  renderForceCfgInputs();
+  updateWeightUI();
+  updateForceUI();
+}
+/* 换算配置输入框：只在结构变化时重建；逐字符输入时不重建，避免丢焦点 */
+function renderForceCfgInputs() {
+  var r = state.current, fc = forceCfg(r), box = $('#forceCfgInputs');
+  if (!box) return;
+  if (!fc.enabled) { box.innerHTML = ''; return; }
+  function sel(k, opts, cur) {
+    return '<select data-fc="'+k+'">'+opts.map(function(o){ return '<option value="'+esc(o[0])+'"'+(String(cur)===String(o[0])?' selected':'')+'>'+esc(o[1])+'</option>'; }).join('')+'</select>';
+  }
+  var h = '';
+  h += '<div class="frow"><label>力值单位</label>'+sel('unit',[['kN','kN（千牛）'],['N','N（牛）']],fc.unit)+'</div>';
+  h += '<div class="frow"><label>面积单位</label>'+sel('areaUnit',[['mm²','mm²（平方毫米）'],['cm²','cm²（平方厘米）']],fc.areaUnit)+'</div>';
+  h += '<div class="frow"><label>面积取值</label>'+sel('areaMode',[['shared','全部试样同一面积'],['each','每个试样单独填面积']],fc.areaMode)+'</div>';
+  if (fc.areaMode!=='each') h += '<div class="frow"><label>横截面积</label><input data-fc="sharedArea" value="'+esc(fc.sharedArea)+'" placeholder="请填写面积数值，如 804.2"></div>';
+  h += '<div class="frow"><label>修约间隔</label><input data-fc="rounding" value="'+esc(fc.rounding)+'" placeholder="留空 = 不修约（保留 2 位小数）"></div>';
+  h += '<div class="btn-row"><button class="mbtn" data-fcquick="5">按 5 MPa 修约</button><button class="mbtn" data-fcquick="1">按 1 MPa 修约</button><button class="mbtn" data-fcquick="">不修约</button><button class="mbtn" id="btnUseNominalArea">按公称直径算面积</button></div>';
+  h += '<label class="chk"><input type="checkbox" data-fcdetail="1"'+(r.includeForceDetail?' checked':'')+'> 打印 / 导出时附「力值→强度换算明细」页</label>';
+  box.innerHTML = h;
+}
+/* 纯展示区：每次输入都刷新，不含任何输入框 */
+function updateForceUI() {
+  var r = state.current, fc = forceCfg(r);
+  document.querySelectorAll('[data-fmode]').forEach(function(b){ b.classList.toggle('on', (b.dataset.fmode==='force')===fc.enabled); });
+  var box = $('#forceCalcBox'); if (!box) return;
+  if (!fc.enabled) { box.innerHTML = ''; return; }
+  var h = '<div class="calc-box"><b>换算口径</b>：R(MPa) = F('+esc(fc.unit)+') ÷ S('+esc(fc.areaUnit)+')；面积来源：'+esc(fc.areaSource||'用户提供')+
+    '；修约：'+(fc.rounding?('按 '+esc(fc.rounding)+' 间隔'):'不修约（保留 2 位小数）')+'</div>';
+  var missing = [];
+  if (!fc.areaUnit) missing.push('面积单位');
+  if (fc.areaMode!=='each' && String(fc.sharedArea).trim()==='') missing.push('横截面积');
+  if (missing.length) h += '<div class="msg err">需补充：'+esc(missing.join('、'))+'，否则不换算强度、不作判定。</div>';
+  h += '<table class="gtable" style="margin-top:6px"><tr><th>子编号</th><th>屈服力</th><th>最大力</th><th>面积</th><th>屈服强度</th><th>抗拉强度</th></tr>'+
+    (r.specimens||[]).map(function(s){
+      var a = specimenArea(r,s), y = specimenStrength(r,s,'yield'), t = specimenStrength(r,s,'tensile');
+      return '<tr><td>'+esc(s.subNo)+'</td><td>'+esc(s.yieldForce)+'</td><td>'+esc(s.tensileForce)+'</td><td>'+esc(a)+'</td><td>'+esc(y.text||'—')+'</td><td>'+esc(t.text||'—')+'</td></tr>';
+    }).join('')+'</table>';
+  box.innerHTML = h;
+}
+/* 仅刷新不含输入框的区域，避免输入过程中重建表单导致焦点丢失 */
+function updateWeightUI() {
+  var w = state.current.weight;
+  document.querySelectorAll('[data-wmode]').forEach(function(b){ b.classList.toggle('on', b.dataset.wmode===w.mode); });
+  var calc = w.mode==='measured' ? computeWeightDeviation(w, state.current.diameter) : null;
+  var box = $('#calcBox');
+  if (box) box.innerHTML = calc ? '<div class="calc-box">试样 '+calc.count+' 根 · 总长 '+calc.totalM+' m · 理论重量 '+calc.theoretical+' kg（'+calc.unit+' kg/m）<br><b>自动计算重量偏差：'+calc.deviation+'%</b></div>'
+    : (w.mode==='measured' ? '<div class="calc-box">填写长度与实测总重后自动计算（理论重量按标准表 2）</div>' : '');
+}
+function spInput(i,k,label,v) { return '<label>'+esc(label)+'<input data-sp="'+i+'" data-k="'+k+'" value="'+esc(v)+'"></label>'; }
+function renderAssumptions() {
+  if (state.current.judgeSource==='provided') {
+    $('#assumeBox').innerHTML =
+      '<div class="fhint"><b>当前为「仅按提供限值」模式</b>：检测项目、实测值、单位、合格限值或范围全部来自导入数据，程序不引用任何内置标准条文、标准限值或经验范围；只有在导入数据明确给出面积、力值单位与面积单位时才按 R=F÷S 换算，修约间隔按你给的值执行，未给则不修约。</div>'+
+      '<div class="fhint"><b>力值项</b>：带「面积」「面积单位」「力值单位」的检测项，主表检测结果自动换成换算后的强度（MPa），判定按该强度与所给限值比较，换算过程可在「力值→强度换算明细」附页复核。缺面积或单位就不换算、不判定，并列入需补充。</div>'+
+      '<div class="fhint">判定口径：按提供的比较符号逐组判定（≥ / ≤ / &gt; / &lt; / ± / 区间 / 定性要求）；临界值是否含等号、逐组还是取平均或最小值，均以你提供的文字为准，程序不自行采用行业惯例。</div>'+
+      '<div class="fhint">缺少「指标名称 / 实测值 / 单位 / 合格限值或范围」任一项时，对应项目显示「待补充」且不作判定；总体结论为「未判定」，并在预览与核查结果中列出需补充内容。</div>'+
+      '<div class="fhint">照片仅作为原始凭证影像附页存档，本程序不含文字识别；照片内容由你在对话中提供、经助手整理成 JSON 后导入。</div>'+
+      '<div class="fhint">报告版式仍沿用示例报告 BG-JZ-202611-GJJ-053；程序不生成任何检验检测专用章或签名图形。</div>';
+    return;
+  }
+  var p = getProfile(state.current);
+  $('#assumeBox').innerHTML =
+    '<div class="fhint">版式依据示例报告 BG-JZ-202611-GJJ-053 逐字段还原；判定依据为 GB 1499.2-2024（强制性，替代 GB/T 1499.2-2018）。</div>'+
+    '<div class="fhint">表 6：带 E 牌号 Agt≥9.0、强屈比≥1.25、屈屈比≤1.30、反向弯曲无裂纹；非 E 牌号改用断后伸长率 A。</div>'+
+    '<div class="fhint">表 4 重量偏差（当前 '+esc(p.standardKey)+'）：6~12mm '+(p.standardKey===STANDARD_CURRENT?'±5.5%':'±6.0%')+'、14~20mm '+(p.standardKey===STANDARD_CURRENT?'±4.5%':'±5.0%')+'、22~50mm '+(p.standardKey===STANDARD_CURRENT?'±3.5%':'±4.0%')+'；当前 φ'+p.diameter+' 限值 <b>±'+p.weightLimit+'%</b>。</div>'+
+    '<div class="fhint">修约间隔：强度 5 MPa、比值 0.01、延伸率与偏差 0.1%（行业惯例，可在源码 ROUNDING 调整）。</div>'+
+    '<div class="fhint">试验机只出力值时，在「五、检测数据」切到「录入力值 + 面积」：按 R=F÷S 自动换算强度；面积可填实测值，也可点「按公称直径算面积」用 S=πd²/4 计算（需你主动确认）。力值单位、面积单位、修约间隔均由你在界面明确选择，留空修约即不修约。</div>'+
+    '<div class="fhint">示例仅给出重量偏差报告值，未附原始称量数据；「由测量值计算」按表 2 理论重量自动反算。</div>'+
+    '<div class="fhint">原报告印章为扫描图片，程序不生成任何印章图形；「检测方法」一行为按录入需求新增，其余版式不变。</div>'+
+    '<div class="fhint">资料核实日期：2026-11-13（国家标准信息公共服务平台、GB/T 1499.2-2018 原文、多地招标公告条文引用）。</div>';
+}
+function refreshPreview() {
+  var r = state.current, t = buildTable(r), d = buildDisplay(r, t), v = validate(r, t);
+  $('#reportPaper').innerHTML = renderReport(d, t, r);
+  var p = t.profile, isProv = r.judgeSource==='provided';
+  var detail = isProv
+    ? '判定仅依据已导入的合格限值 · 检测项目 '+t.groups.length+' 项 · 需补充 '+t.missingSpecs.length+' 项 · 不引用内置标准值'
+    : esc(p.standardKey)+' · '+esc(p.grade)+' φ'+p.diameter+'mm · 屈服≥'+p.rel+' · 抗拉≥'+p.rm+' · Agt≥'+p.agt.toFixed(1)+' · 重量偏差±'+p.weightLimit;
+  if (!isProv && forceCfg(r).enabled) detail += ' · 力值÷面积换算强度';
+  $('#verdictBox').innerHTML = '<div class="verdict-box '+(t.verdict==='合格'?'ok':(t.verdict==='不合格'?'fail':'pending'))+'">当前判定：<b>'+esc(t.verdict)+'</b><br><span style="font-size:10.5px">'+detail+'</span></div>';
+  $('#groupTable').innerHTML = '<table class="gtable"><tr><th>检测项目</th><th>技术指标</th><th>检测结果</th><th>判定</th></tr>'+
+    t.groups.map(function(g){ var proj=g.unit?g.project+'('+g.unit+')':g.project; return '<tr><td>'+esc(proj)+'</td><td>'+esc(g.spec)+'</td><td>'+esc(g.rows.map(function(x){ return x.text||'—'; }).join(' / '))+'</td><td class="'+(g.pass===false?'fail':'')+'">'+esc(g.verdict)+'</td></tr>'; }).join('')+'</table>';
+  $('#msgBox').innerHTML = '<div style="margin-top:8px;font-size:11px;color:#6b7688">必填缺失 '+v.errors.length+' 项 / 提示 '+v.warnings.length+' 项</div>'+
+    v.errors.slice(0,6).map(function(m){ return '<div class="msg err">'+esc(m)+'</div>'; }).join('')+
+    v.warnings.map(function(m){ return '<div class="msg warn">'+esc(m)+'</div>'; }).join('');
+  updateWeightUI();
+  updateForceUI();
+  renderJudgeResult();
+  var badge = $('#stateBadge');
+  badge.textContent = r.id ? '当前：'+r.reportNo+'（已保存）' : (state.isSample ? '当前：示例（未保存）' : '当前：新报告（未保存）');
+}
+
+/* ============ 七、历史记录 ============ */
+function filteredReports() {
+  var kw = $('#fKeyword').value.trim().toLowerCase(), gr = $('#fGrade').value, vd = $('#fVerdict').value,
+      from = $('#fFrom').value, to = $('#fTo').value;
+  return state.reports.filter(function(r){
+    if (kw) { var fields=[r.reportNo,r.sampleNo,r.projectName,r.client,r.batchNo,r.manufacturer,r.entrustNo,r.projectPart].join(' ').toLowerCase(); if (fields.indexOf(kw)<0) return false; }
+    if (gr && r.grade!==gr) return false;
+    if (vd && r.verdict!==vd) return false;
+    if (from && String(r.testDate||'')<from) return false;
+    if (to && String(r.testDate||'')>to) return false;
+    return true;
+  });
+}
+function renderList() {
+  var list = filteredReports();
+  $('#repList').innerHTML = list.length ? list.map(function(r){
+    var cls = r.verdict==='合格'?'ok':(r.verdict==='不合格'?'fail':'pending');
+    return '<div class="rep-item'+(state.current && r.id===state.current.id?' active':'')+'" data-open="'+esc(r.id)+'">'+
+      '<div class="rep-no"><span>'+esc(r.reportNo)+'</span><span class="tag '+cls+'">'+esc(r.verdict||'未判定')+'</span></div>'+
+      '<div class="rep-sub">'+esc(r.projectName||'（未填工程名称）')+'</div>'+
+      '<div class="rep-sub">'+esc(r.grade)+' φ'+esc(r.diameter)+'mm · '+esc(r.testDate||'—')+' · 批号 '+esc(r.batchNo||'—')+'</div>'+
+      '<div class="rep-sub"><span data-del="'+esc(r.id)+'" style="color:#c02424">删除</span></div></div>';
+  }).join('') : '<div style="padding:20px;text-align:center;color:#8a94a3;font-size:12px">暂无报告记录</div>';
+}
+function openReport(id) {
+  var r = state.reports.filter(function(x){ return x.id===id; })[0];
+  if (!r) return;
+  state.current = clone(r); state.isSample = false;
+  renderForm(); renderList();
+}
+function removeReport(id) {
+  if (!confirm('确认删除该报告？此操作不可撤销。')) return;
+  state.reports = state.reports.filter(function(x){ return x.id!==id; });
+  saveReports(state.reports);
+  if (state.current.id===id) { state.current = createEmptyReport(); state.isSample=false; renderForm(); }
+  renderList(); toast('已删除');
+}
+function saveCurrent() {
+  var r = state.current, t = buildTable(r), v = validate(r, t);
+  if (!v.valid) { alert('必填项未完成，共 '+v.errors.length+' 项：\n\n'+v.errors.slice(0,8).join('\n')+(v.errors.length>8?'\n…':'')); return false; }
+  r.verdict = t.verdict;
+  r.conclusion = r.conclusionMode==='manual' ? r.conclusion : buildConclusion(r,t);
+  r.updatedAt = Date.now();
+  var list = state.reports.slice();
+  if (!r.id) { r.id = uid('r'); r.createdAt = r.updatedAt; list.unshift(r); }
+  else { var i = list.findIndex(function(x){ return x.id===r.id; }); if (i>=0) list[i]=r; else list.unshift(r); }
+  if (!saveReports(list)) return false;
+  state.reports = list;
+  state.isSample = false;
+  renderList(); refreshPreview(); toast('已保存：'+r.reportNo);
+  return true;
+}
+
+/* ============ 八、导出 ============ */
+function reportHtmlForExport() {
+  var t = buildTable(state.current), d = buildDisplay(state.current, t);
+  return '<div id="reportPaper">' + renderReport(d,t,state.current) + '</div>';
+}
+function exportWord() {
+  var css = $('#reportStyles').textContent;
+  /* Word 对 flex / 绝对定位支持有限，导出时用块级布局覆盖，保证内容顺序完整 */
+  var wordFix = '#reportPaper .rp-header{display:block}#reportPaper .rp-header span{display:inline;margin-right:14px}'+
+    '#reportPaper .sign-row{display:block}#reportPaper .sign-row span{margin-right:18px}'+
+    '#reportPaper .tail-addr{display:block}#reportPaper .tail-addr>div{display:block;width:100%;border-right:none}'+
+    '#reportPaper .blank-mark{position:static;display:block;transform:none;width:120px;text-align:center;margin:3px auto}';
+  var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>'+esc(state.current.reportNo)+'</title><style>'+css+wordFix+' @page{size:A4;margin:9mm 8mm}</style></head><body>'+reportHtmlForExport()+'</body></html>';
+  download(new Blob(['\ufeff'+html], {type:'application/msword;charset=utf-8'}), state.current.reportNo+'.doc');
+  var withPhoto = state.current.includePhotos && state.current.photos && state.current.photos.length;
+  toast(withPhoto ? '已导出 Word；照片附页在 Word 中可能不显示，建议用「打印 / 另存 PDF」' : '已导出 Word（.doc），可直接用 Word 打开编辑');
+}
+function exportBackup() {
+  if (!state.reports.length) { toast('暂无报告可备份'); return; }
+  download(new Blob([JSON.stringify(state.reports,null,2)],{type:'application/json;charset=utf-8'}), '钢筋报告备份_'+today()+'.json');
+  toast('已导出 '+state.reports.length+' 份报告的备份文件');
+}
+
+/* ============ 九、事件绑定 ============ */
+var state = { reports:[], current:null, isSample:false };
+
+$('#formPanel').addEventListener('input', function(e){
+  var p = e.target.dataset.path; if (!p) return;
+  var v = e.target.type==='checkbox' ? e.target.checked : e.target.value;
+  setPath(state.current, p, v);
+  if (p==='standardKey') { state.current.judgeBasis = v; var sel = $('#formPanel [data-path="judgeBasis"]'); if (sel) sel.value = v; }
+  renderAssumptions(); refreshPreview();
+});
+$('#formPanel').addEventListener('change', function(e){
+  var p = e.target.dataset.path; if (!p) return;
+  if (e.target.type==='checkbox') return;
+  var v = e.target.value; setPath(state.current, p, v);
+  if (p==='standardKey') { state.current.judgeBasis=v; var sel=$('#formPanel [data-path="judgeBasis"]'); if (sel) sel.value=v; }
+  renderAssumptions(); refreshPreview();
+});
+function handleFc(e) {
+  var k = e.target.dataset.fc;
+  if (k===undefined) return false;
+  state.current.forceCalc[k] = e.target.value;
+  if (k==='areaMode') { renderDynamic(); refreshPreview(); }
+  else refreshPreview();
+  return true;
+}
+$('#formPanel').addEventListener('input', function(e){
+  if (e.target.dataset.sp!==undefined) { state.current.specimens[+e.target.dataset.sp][e.target.dataset.k]=e.target.value; refreshPreview(); }
+  else if (e.target.dataset.bd!==undefined) { state.current.bends[+e.target.dataset.bd][e.target.dataset.k]=e.target.value; refreshPreview(); }
+  else if (e.target.dataset.w!==undefined) { state.current.weight[e.target.dataset.w]=e.target.value; refreshPreview(); }
+  else if (e.target.dataset.fcdetail!==undefined) { state.current.includeForceDetail=e.target.checked; refreshPreview(); }
+  else if (!handleFc(e)) return;
+});
+$('#formPanel').addEventListener('change', function(e){
+  if (e.target.dataset.bd!==undefined) { state.current.bends[+e.target.dataset.bd][e.target.dataset.k]=e.target.value; refreshPreview(); }
+  else handleFc(e);
+});
+$('#formPanel').addEventListener('click', function(e){
+  var t = e.target, ds = t.dataset;
+  if (ds.delsp!==undefined) { if (state.current.specimens.length<=1) { toast('至少保留 1 组拉伸试样'); return; } state.current.specimens.splice(+ds.delsp,1); state.current.specimens.forEach(function(s,i){ s.subNo=String(i+1); }); renderDynamic(); refreshPreview(); }
+  else if (ds.delbd!==undefined) { if (state.current.bends.length<=1) { toast('至少保留 1 组反向弯曲'); return; } state.current.bends.splice(+ds.delbd,1); state.current.bends.forEach(function(b,i){ b.subNo=String(6+i); }); renderDynamic(); refreshPreview(); }
+  else if (t.id==='addSp') { state.current.specimens.push(newSpecimen(state.current.specimens.length+1)); renderDynamic(); refreshPreview(); }
+  else if (t.id==='addBd') { state.current.bends.push(newBend(6+state.current.bends.length)); renderDynamic(); refreshPreview(); }
+  else if (ds.wmode) { state.current.weight.mode=ds.wmode; renderDynamic(); refreshPreview(); }
+  else if (ds.fmode) {
+    state.current.forceCalc.enabled = (ds.fmode==='force');
+    renderDynamic(); refreshPreview();
+    toast(state.current.forceCalc.enabled ? '已切换：录入力值 + 面积，自动换算强度' : '已切换：直接录入强度');
+  }
+  else if (ds.fcquick!==undefined) {
+    state.current.forceCalc.rounding = ds.fcquick;
+    renderDynamic(); refreshPreview();
+    toast(ds.fcquick ? ('强度按 '+ds.fcquick+' MPa 间隔修约') : '已设为不修约（保留 2 位小数）');
+  }
+  else if (t.id==='btnUseNominalArea') {
+    var dia = state.current.diameter, a = nominalAreaFromDiameter(dia);
+    if (!a) { toast('请先填写有效的公称直径，再计算公称面积'); return; }
+    state.current.forceCalc.areaMode = 'shared';
+    state.current.forceCalc.sharedArea = String(Number(a.toFixed(1)));
+    state.current.forceCalc.areaSource = '由公称直径按 S=πd²/4 计算（φ'+dia+'mm）';
+    renderDynamic(); refreshPreview();
+    toast('已填入 '+Number(a.toFixed(1))+' mm²（按 S=πd²/4）。请确认采用公称面积还是你实测的面积。');
+  }
+});
+['fKeyword','fFrom','fTo'].forEach(function(id){ $('#'+id).addEventListener('input', renderList); });
+['fGrade','fVerdict'].forEach(function(id){ $('#'+id).addEventListener('change', renderList); });
+$('#repList').addEventListener('click', function(e){
+  var del = e.target.dataset.del; if (del) { e.stopPropagation(); removeReport(del); return; }
+  var item = e.target.closest('[data-open]'); if (item) openReport(item.dataset.open);
+});
+$('#btnNew').addEventListener('click', function(){ state.current=createEmptyReport(); state.isSample=false; renderForm(); renderList(); toast('已新建，编号与日期自动填充；试验机只出力值时，请在第五节切到「录入力值 + 面积」'); });
+$('#btnSample').addEventListener('click', function(){
+  var exist = state.reports.filter(function(r){ return r.reportNo==='BG-JZ-202611-GJJ-053'; })[0];
+  if (exist) { openReport(exist.id); toast('已打开已保存的示例报告'); return; }
+  state.current=createSampleReport(); state.isSample=true; renderForm(); renderList(); toast('已载入示例报告（未保存）');
+});
+$('#btnSave').addEventListener('click', saveCurrent);
+$('#btnPrint').addEventListener('click', function(){ window.print(); });
+$('#btnWord').addEventListener('click', exportWord);
+$('#btnBackup').addEventListener('click', exportBackup);
+$('#btnRestore').addEventListener('click', function(){ $('#restoreFile').click(); });
+$('#restoreFile').addEventListener('change', function(e){
+  var f = e.target.files[0]; if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    try {
+      var arr = JSON.parse(reader.result);
+      if (!Array.isArray(arr) || !arr.every(function(x){ return x && x.id && x.reportNo; })) throw new Error('格式不正确');
+      if (!confirm('将用备份中的 '+arr.length+' 份报告覆盖当前记录，是否继续？')) return;
+      state.reports = arr.map(normalizeReport); if (!saveReports(state.reports)) return;
+      renderList(); toast('已恢复 '+arr.length+' 份报告');
+    } catch(err) { alert('恢复失败：'+err.message); }
+    e.target.value = '';
+  };
+  reader.readAsText(f, 'utf-8');
+});
+$('#zoomRange').addEventListener('input', function(e){ $('#reportPaper').style.zoom = (e.target.value/100); $('#zoomText').textContent = e.target.value+'%'; });
+
+/* 打印前确保预览为最新，且缩放还原 */
+window.addEventListener('beforeprint', function(){ refreshPreview(); });
+
+/* ============ 九之二、拍照 / 导入数据 / 按提供限值核查 ============ */
+var camStream = null;
+function setImportMsg(text) { var el = $('#importMsg'); if (el) el.textContent = text; }
+
+/* 核查结果：总体结论 + 需补充内容 + 各指标「实测值 / 要求范围 / 单项判定 / 简要依据」 */
+function renderJudgeResult() {
+  var box = $('#judgeResult'); if (!box) return;
+  var r = state.current;
+  if (r.judgeSource!=='provided') { box.value = '（当前为「内置指标库」模式。切到「仅按导入 / 录入的合格限值判定」后，此处显示按你提供信息作出的结构化核查结果。）'; return; }
+  var t = buildTable(r), L = [];
+  L.push('总体结论：'+t.verdict);
+  L.push('判定依据：仅依据本次导入 / 录入的信息；换算与修约只按本次明确给出的面积、单位与修约间隔执行，未引用任何未提供的标准、条文或限值。');
+  L.push('');
+  if (t.missingSpecs.length) {
+    L.push('【需补充的内容】');
+    t.missingSpecs.forEach(function(m,i){ L.push('  '+(i+1)+'. '+m); });
+    L.push('  说明：信息不足，不作总体判定；不推断数值、单位、比较方向或临界值是否含等号。');
+    L.push('');
+  }
+  L.push('【单项判定】');
+  L.push('指标名称 | 实测值 | 单位 | 要求范围 | 单项判定 | 简要依据');
+  if (!t.groups.length) L.push('（未提供任何检测项目与实测值）');
+  t.groups.forEach(function(g){
+    var vals = g.rows.map(function(x){ return x.text||'—'; }).join('、');
+    var req = g.needSpec ? '待补充' : g.spec;
+    var basis = !g.infoComplete ? '指标名称 / 实测值 / 单位 / 合格限值或范围不完整，不作判定'
+      : (g.pass===false ? '实测值不满足 '+req
+        : (g.pass===true ? '实测值满足 '+req : '无法比较，不作判定'));
+    L.push(g.project+' | '+vals+' | '+(g.unit||'（未提供）')+' | '+req+' | '+g.verdict+' | '+basis);
+    if (g.conversions && g.conversions.length) {
+      L.push('  换算依据（你提供的力值 / 面积）：'+g.conversions.map(function(c){
+        var v=c.conv;
+        return '子编号 '+c.subNo+'：'+c.force+' '+v.forceUnit+' ÷ '+v.area+' '+v.areaUnit+' = '+v.raw+
+          ' → '+v.text+' '+(g.unit||'')+(v.step ? ('（修约间隔 '+v.step+'）') : '（未指定修约，保留 2 位小数、不修约）');
+      }).join('；'));
+    }
+  });
+  L.push('');
+  L.push('注：逐组判定还是取平均 / 最小值、换算与修约方式、临界值等号，均以你提供的文字为准；程序不采用行业惯例。');
+  box.value = L.join('\n');
+}
+
+/* —— 原始凭证照片：压缩后存入 localStorage，作为附页打印 / 导出 —— */
+function compressDataUrl(src, maxSide, quality) {
+  return new Promise(function(resolve, reject){
+    var img = new Image();
+    img.onload = function(){
+      var w=img.width, h=img.height, scale=Math.min(1, maxSide/Math.max(w,h));
+      var c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(w*scale)); c.height=Math.max(1,Math.round(h*scale));
+      var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height);
+      try { resolve(c.toDataURL('image/jpeg', quality)); } catch(e) { reject(e); }
+    };
+    img.onerror = function(){ reject(new Error('图片解码失败')); };
+    img.src = src;
+  });
+}
+function addPhoto(dataUrl, name) {
+  return compressDataUrl(dataUrl, 1600, 0.82).then(function(small){
+    var total = (state.current.photos||[]).reduce(function(a,p){ return a+(p.data?p.data.length:0); }, 0);
+    if (total + small.length > 3.5*1024*1024) { toast('照片总量已达本机存储上限，请先删除部分照片'); return; }
+    state.current.photos.push({ id:uid('ph'), name:name||'原始凭证', data:small, time:new Date().toLocaleString('zh-CN') });
+    renderPhotoList(); refreshPreview(); toast('已加入凭证：'+(name||'照片'));
+  });
+}
+function renderPhotoList() {
+  var box = $('#photoList'); if (!box) return;
+  var ps = state.current.photos || [];
+  box.innerHTML = ps.length ? ps.map(function(p,i){
+    return '<div class="photo-item"><img src="'+esc(p.data)+'" alt="'+esc(p.name)+'"><button data-delphoto="'+i+'" title="删除">×</button></div>';
+  }).join('') : '<div style="grid-column:span 4;font-size:11px;color:#8a94a3;padding:6px">暂无照片</div>';
+  var chk = $('#chkIncludePhotos'); if (chk) chk.checked = !!state.current.includePhotos;
+  var sel = $('#judgeSourceSel'); if (sel) sel.value = state.current.judgeSource || 'builtin';
+}
+function readAsDataURL(f) {
+  return new Promise(function(res, rej){
+    var fr = new FileReader();
+    fr.onload = function(){ res(fr.result); };
+    fr.onerror = function(){ rej(new Error('文件读取失败')); };
+    fr.readAsDataURL(f);
+  });
+}
+function handlePhotoFiles(files) {
+  if (!files || !files.length) return;
+  var arr = Array.prototype.slice.call(files).filter(function(f){ return /^image\//.test(f.type||''); });
+  if (!arr.length) { toast('未选择图片文件'); return; }
+  var chain = Promise.resolve();
+  arr.forEach(function(f){
+    chain = chain.then(function(){ return readAsDataURL(f).then(function(u){ return addPhoto(u, f.name); }); });
+  });
+  chain.catch(function(e){ toast('照片处理失败：'+(e&&e.message||e)); });
+}
+function startCam() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    setImportMsg('当前环境无法调用摄像头（本地 file:// 打开时部分浏览器会禁用）。请改用「手机直接拍照」或「选择图片文件」。'); return;
+  }
+  navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false }).then(function(stream){
+    camStream = stream; var v = $('#camVideo'); v.srcObject = stream; v.classList.add('on');
+    if (v.play) { var pr = v.play(); if (pr && pr.catch) pr.catch(function(){}); }
+  }).catch(function(e){
+    setImportMsg('摄像头打开失败：'+(e&&e.message||e)+'。可改用「手机直接拍照」或「选择图片文件」，功能不受影响。');
+  });
+}
+function shotCam() {
+  var v = $('#camVideo');
+  if (!camStream || !v.classList.contains('on')) { toast('请先打开摄像头'); return; }
+  var c = $('#camCanvas'), w = v.videoWidth||1280, h = v.videoHeight||720;
+  c.width = w; c.height = h; c.getContext('2d').drawImage(v,0,0,w,h);
+  addPhoto(c.toDataURL('image/jpeg',0.9), '现场照片 '+new Date().toLocaleTimeString('zh-CN'));
+}
+function stopCam() {
+  if (camStream) { camStream.getTracks().forEach(function(t){ t.stop(); }); camStream = null; }
+  var v = $('#camVideo'); if (v) { v.srcObject = null; v.classList.remove('on'); }
+}
+function mobileShot() {
+  var i = document.createElement('input');
+  i.type='file'; i.accept='image/*'; i.setAttribute('capture','environment'); i.style.display='none';
+  document.body.appendChild(i);
+  i.addEventListener('change', function(){ handlePhotoFiles(i.files); document.body.removeChild(i); });
+  i.click();
+}
+function openCaptureModal() { $('#captureModal').classList.add('on'); renderPhotoList(); renderJudgeResult(); }
+function closeCaptureModal() { $('#captureModal').classList.remove('on'); stopCam(); }
+
+/* —— 导入：字段映射 —— */
+function pick(o, keys) {
+  if (!o || typeof o!=='object') return undefined;
+  for (var i=0;i<keys.length;i++) { var v=o[keys[i]]; if (v!==undefined && v!==null && v!=='') return v; }
+  return undefined;
+}
+function pv(o, keys, def) { var v=pick(o,keys); return v===undefined ? def : v; }
+function normDate(v) {
+  var s = String(v||'').trim();
+  var m = s.match(/^(\d{4})[-/年.](\d{1,2})[-/月.](\d{1,2})/);
+  return m ? m[1]+'-'+pad2(Number(m[2]))+'-'+pad2(Number(m[3])) : s;
+}
+function normDia(v) { var m=String(v).match(/\d+(?:\.\d+)?/); return m ? m[0] : String(v); }
+var IMPORT_FIELDS = [
+  [['报告编号','reportNo'],'reportNo'],
+  [['检测单位','检测单位名称','labName'],'labName'],
+  [['表格编号','formCode'],'formCode'],
+  [['委托单位','施工/委托单位','施工委托单位','委托方','client'],'client'],
+  [['工程名称','projectName'],'projectName'],
+  [['委托日期','entrustDate'],'entrustDate'],
+  [['委托编号','entrustNo'],'entrustNo'],
+  [['检测类别','testCategory'],'testCategory'],
+  [['试验日期','检测日期','testDate'],'testDate'],
+  [['工程部位','工程部位/用途','projectPart'],'projectPart'],
+  [['检测依据','testBasis'],'testBasis'],
+  [['检测方法','testMethod'],'testMethod'],
+  [['判定依据','judgeBasis'],'judgeBasis'],
+  [['见证单位','witnessUnit'],'witnessUnit'],
+  [['见证人','见证人/电话','witnessPerson'],'witnessPerson'],
+  [['主要仪器设备','仪器设备','instruments'],'instruments'],
+  [['牌号','钢筋牌号','grade'],'grade'],
+  [['公称直径','直径','规格','diameter'],'diameter'],
+  [['批号','批次编号','batchNo'],'batchNo'],
+  [['生产厂家','厂名','manufacturer'],'manufacturer'],
+  [['代表数量','representQty'],'representQty'],
+  [['出厂编号','factoryNo'],'factoryNo'],
+  [['试样编号','sampleNo'],'sampleNo'],
+  [['样品编号','sample.no'],'sample.no'],
+  [['备注','remark'],'remark'],
+  [['附加声明','statement'],'statement'],
+  [['机构地址','address'],'address'],
+  [['联系电话','phone'],'phone'],
+  [['检测','检测人','tester'],'tester'],
+  [['审核','审核人','reviewer'],'reviewer'],
+  [['批准','批准人','approver'],'approver'],
+  [['签发日期','signDate'],'signDate'],
+  [['检测结论','结论','conclusion'],'conclusion'],
+  [['结论模式','conclusionMode'],'conclusionMode'],
+  [['报告标题','title'],'title']
+];
+function normalizeSpecs(obj) {
+  var out = {};
+  if (!obj || typeof obj!=='object') return out;
+  Object.keys(obj).forEach(function(k){ out[toCode(k)] = obj[k]; out[k] = obj[k]; });
+  return out;
+}
+function defaultStressName(n) {
+  if (n.indexOf('屈服')>=0) return '屈服强度';
+  if (n.indexOf('最大力')>=0 || n.indexOf('抗拉')>=0) return '抗拉强度';
+  return n + '（换算）';
+}
+function buildCustomItems(data) {
+  var arr = pick(data,['检测数据','检测项目','项目数据','items']);
+  if (!Array.isArray(arr)) arr = [];
+  return arr.map(function(it, idx){
+    if (!it || typeof it!=='object') it = { '指标名称':'项目'+(idx+1) };
+    var name = String(pv(it,['指标名称','项目','检测项目','name'],'项目'+(idx+1)));
+    var unit = String(pv(it,['单位','unit'],''));
+    var spec = pv(it,['合格限值或范围','合格限值','限值','要求范围','技术指标','spec','limit'],undefined);
+    var rawVals = pv(it,['实测值','检测值','结果','values'],undefined);
+    var subs = pv(it,['试样子编号','子编号','subNos'],undefined);
+    var list = Array.isArray(rawVals) ? rawVals : (rawVals===undefined?[]:[rawVals]);
+    var subList = Array.isArray(subs) ? subs : (subs!==undefined?[subs]:[]);
+    var values = list.map(function(v,i){
+      var val = (v && typeof v==='object' && v.value!==undefined) ? v.value : v;
+      var sn = (v && typeof v==='object' && v.subNo!==undefined) ? v.subNo
+        : (subList[i]!==undefined ? subList[i] : String(i+1));
+      return { subNo:String(sn), value:val, text:String(val) };
+    });
+    /* 力值 → 强度：只有导入数据明确给出「面积」或「换算」时才启用；
+       面积单位、力值单位缺失不假设，留给 buildProvidedTable 列入需补充。 */
+    var areaRaw = pv(it,['面积','横截面积','公称面积','area','areas'],undefined);
+    var convFlag = pv(it,['换算','conversion'],undefined);
+    var conversion = null;
+    if (areaRaw!==undefined || convFlag!==undefined) {
+      var areas = Array.isArray(areaRaw) ? areaRaw : (areaRaw===undefined?[]:[areaRaw]);
+      conversion = { type:'forceToStress', areas:areas,
+        areaUnit:String(pv(it,['面积单位','areaUnit'],'')),
+        forceUnit:String(pv(it,['力值单位','forceUnit','单位','unit'],'')),
+        resultName:String(pv(it,['换算为','结果名称','resultName'],defaultStressName(name))),
+        resultUnit:String(pv(it,['结果单位','resultUnit'],'MPa')),
+        rounding:String(pv(it,['修约间隔','rounding','roundingStep'],'')),
+        formula:'R = F ÷ S' };
+    }
+    return { code:toCode(name), name:name, unit:unit,
+      method:String(pv(it,['检测方法','方法','method'],'')),
+      spec:(spec===undefined?'':String(spec)), values:values, conversion:conversion };
+  });
+}
+function importBuiltinData(r, data) {
+  var arr = pick(data,['试样','拉伸试样','specimens']);
+  if (Array.isArray(arr) && arr.length) r.specimens = arr.map(function(s,i){
+    return { key:uid('sp'), subNo:String(pv(s,['编号','子编号','试样子编号','subNo'],i+1)),
+      yield:pv(s,['屈服强度','ReL','yield'],''), tensile:pv(s,['抗拉强度','Rm','tensile'],''),
+      agt:pv(s,['最大力总延伸率','Agt','agt'],''), a:pv(s,['断后伸长率','A','elongation'],'') };
+  });
+  var bd = pick(data,['反向弯曲','弯曲','bends']);
+  if (Array.isArray(bd) && bd.length) r.bends = bd.map(function(b,i){
+    return { key:uid('bd'), subNo:String(pv(b,['编号','子编号','subNo'],6+i)), result:String(pv(b,['结果','result'],'无裂纹')) };
+  });
+  var w = pick(data,['重量偏差','weightDeviation']);
+  if (w!==undefined) r.weight.deviation = (w && typeof w==='object') ? pv(w,['偏差','值','deviation'],'') : w;
+}
+var IMPORT_TEMPLATE = {
+  '判定来源':'provided',
+  '报告编号':'',
+  '检测单位':'中交建筑集团北京检测科技有限公司',
+  '委托单位':'',
+  '工程名称':'',
+  '委托日期':'',
+  '委托编号':'',
+  '试验日期':'',
+  '工程部位':'',
+  '检测类别':'见证送样',
+  '判定依据':'',
+  '检测依据':'',
+  '检测方法':'',
+  '牌号':'',
+  '公称直径':'',
+  '批号':'',
+  '生产厂家':'',
+  '代表数量':'',
+  '试样编号':'',
+  '样品信息':{ '样品名称':'', '样品编号':'', '样品数量':'', '样品状态':'' },
+  '见证单位':'',
+  '见证人':'',
+  '主要仪器设备':'',
+  '检测数据':[
+    { '指标名称':'屈服力', '实测值':[], '单位':'kN', '面积':[], '面积单位':'mm²',
+      '换算为':'屈服强度', '结果单位':'MPa', '修约间隔':'', '合格限值或范围':'', '试样子编号':[] },
+    { '指标名称':'最大力', '实测值':[], '单位':'kN', '面积':[], '面积单位':'mm²',
+      '换算为':'抗拉强度', '结果单位':'MPa', '修约间隔':'', '合格限值或范围':'', '试样子编号':[] }
+  ],
+  '合格限值':{},
+  '包含换算明细':true,
+  '原始凭证照片':[],
+  '备注':'/',
+  '签发日期':''
+};
+var IMPORT_HELP = '已填入字段模板（数值均为空，直接导入只会列出「需补充」，不会生成假定数据）。\n'+
+  '检测数据每项需要：指标名称、实测值（单值或数组）、单位、合格限值或范围；可选检测方法、试样子编号。\n'+
+  '限值写法：≥400 / ≤1.30 / >0 / <5 / ±3.5 / 400~540 / 无裂纹。纯数字如 "400" 不推断比较方向，视为需补充。\n'+
+  '【力值换算】试验机只出力值时，在检测数据项里加「面积」（单个数值=全部试样共用，或数组=逐试样）、「面积单位」（mm²/cm²）、「力值单位」（kN/N，不写则用「单位」）、可选「换算为」「结果单位」「修约间隔」。程序按 R=F÷S 换算成强度，主表填换算值、判定按该值与限值比较，并可在附页列出每个试样的换算过程。\n'+
+  '面积也可写「按公称直径计算」（同时给「公称直径」，程序按 S=πd²/4 求面积）；这是显式指令，不写面积时程序不会自己补。\n'+
+  '修约间隔留空 = 不修约、保留 2 位小数；填 5 表示按 5 MPa 修约。面积、单位、修约口径都按你给的，程序不采用行业惯例；缺面积或单位就不换算、不判定，并列入需补充。\n'+
+  '推荐用法：把助手整理好的 .json 文件用「选择 JSON 文件」直接导入；文件里可带「原始凭证照片」（图片 base64 dataURL 数组），一次导入照片并自动附上附页。';
+function applyImport() {
+  var raw = $('#importText').value.trim();
+  if (!raw) { setImportMsg('请先粘贴 JSON 数据，或点「查看字段模板」了解格式。'); return; }
+  var data;
+  try { data = JSON.parse(raw); }
+  catch(e) { setImportMsg('JSON 解析失败：'+e.message+'。请检查逗号、引号是否完整。'); return; }
+  if (!data || typeof data!=='object' || Array.isArray(data)) { setImportMsg('顶层必须是 JSON 对象 { ... }。'); return; }
+  /* 「面积：按公称直径计算」是显式指令；只有你这样写，程序才用 S=πd²/4 求面积，否则绝不自行补面积 */
+  var diaRaw = pick(data,['公称直径','直径','规格','diameter'],''), dd = diaRaw ? normDia(diaRaw) : '';
+  var nominalA = dd ? nominalAreaFromDiameter(dd) : null;
+  var arr0 = data['检测数据']||data['检测项目']||data['项目数据']||data['items'];
+  if (Array.isArray(arr0) && nominalA) {
+    arr0.forEach(function(it){
+      if (!it || typeof it!=='object') return;
+      var key = ['面积','横截面积','area','areas'].filter(function(k){ return it[k]!==undefined; })[0];
+      if (!key) return;
+      var av = it[key];
+      if (typeof av==='string' && /按公称直径|按直径计算|nominal/i.test(av)) {
+        it[key] = Number(nominalA.toFixed(1));
+        if (!it['面积单位'] && !it['areaUnit']) it['面积单位'] = 'mm²';
+      }
+    });
+  }
+  var declared = String(pv(data,['判定来源','判定模式','judgeSource'],'')).toLowerCase();
+  var hasData = !!(data['检测数据']||data['检测项目']||data['项目数据']||data['合格限值']||data['限值']||data['要求范围']||data['specs']||data['limits']);
+  var src = declared==='builtin' ? 'builtin'
+    : ((declared==='provided'||hasData) ? 'provided' : ($('#judgeSourceSel').value||'builtin'));
+
+  /* 每次导入都新建报告，绝不沿用示例数据或上一份报告的检测值 */
+  var r = createEmptyReport();
+  if (src==='provided') {
+    ['grade','diameter','batchNo','manufacturer','representQty','factoryNo','testBasis','testMethod',
+     'judgeBasis','instruments','witnessUnit','witnessPerson','projectPart','entrustNo','testCategory',
+     'remark','tester','reviewer','approver','conclusion'].forEach(function(k){ r[k]=''; });
+    r.sample = { name:'', no:r.sample.no, quantity:'', state:'' };
+    r.specimens = []; r.bends = [];
+    r.weight = { subNos:'', mode:'direct', deviation:'', lengthsText:'', actualMass:'' };
+    r.conclusionMode = 'auto';
+  }
+  IMPORT_FIELDS.forEach(function(m){ var v=pick(data,m[0]); if (v!==undefined) setPath(r,m[1],v); });
+  ['entrustDate','testDate','signDate'].forEach(function(k){ if (r[k]) r[k]=normDate(r[k]); });
+  if (r.diameter!=='' && r.diameter!==undefined && r.diameter!==null) r.diameter = normDia(r.diameter);
+  var si = pick(data,['样品信息','样品','sample']);
+  if (si && typeof si==='object') {
+    [['样品名称','name'],['样品编号','no'],['样品数量','quantity'],['样品状态','state']].forEach(function(m){
+      var v = pick(si,[m[0],m[1]]); if (v!==undefined) r.sample[m[1]] = v;
+    });
+  }
+  if (src==='provided') {
+    r.judgeSource = 'provided';
+    r.providedSpecs = normalizeSpecs(pick(data,['合格限值','限值','要求范围','specs','limits'])||{});
+    r.customItems = buildCustomItems(data);
+  } else {
+    r.judgeSource = 'builtin';
+    importBuiltinData(r, data);
+  }
+  var inc = pick(data,['包含换算明细','换算明细','includeForceDetail']);
+  if (inc!==undefined) r.includeForceDetail = (inc===true || inc==='true' || inc===1 || inc==='1');
+  /* 可选：JSON 直接携带原始凭证照片（dataURL），一次导入照片 + 数据 + 委托方信息 */
+  var ph = pick(data,['原始凭证照片','凭证照片','照片','photos']);
+  if (ph !== undefined) {
+    var plist = Array.isArray(ph) ? ph : [ph];
+    plist.forEach(function(p, i){
+      var u = (typeof p==='string') ? p : (p && (p.data||p.dataUrl||p.url));
+      var nm = (p && typeof p==='object' && p.name) ? p.name : ('凭证'+(i+1));
+      var tm = (p && typeof p==='object' && p.time) ? p.time : new Date().toLocaleString('zh-CN');
+      if (u && /^data:image\//.test(String(u)))
+        r.photos.push({ id:uid('ph'), name:String(nm), data:String(u), time:String(tm) });
+    });
+    if (r.photos.length) r.includePhotos = true;
+  }
+  state.current = normalizeReport(r);
+  state.isSample = false;
+  renderForm(); renderList(); renderPhotoList(); renderJudgeResult();
+  var t = buildTable(state.current);
+  setImportMsg('已按导入数据新建报告。判定来源：'+(src==='provided'?'仅按提供限值':'内置指标库')+
+    '；检测项目 '+t.groups.length+' 项；需补充 '+t.missingSpecs.length+' 项；当前判定：'+t.verdict+'。\n'+
+    '照片附页与报告可在右侧预览，点「打印 / 另存 PDF」或「导出 Word」出报告，别忘了点「保存报告」。');
+  toast('已导入并生成报告：'+r.reportNo);
+}
+
+/* —— 事件绑定 —— */
+$('#btnCapture').addEventListener('click', openCaptureModal);
+$('#modalClose').addEventListener('click', closeCaptureModal);
+$('#captureModal').addEventListener('click', function(e){ if (e.target.id==='captureModal') closeCaptureModal(); });
+$('#btnCamStart').addEventListener('click', startCam);
+$('#btnCamShot').addEventListener('click', shotCam);
+$('#btnCamStop').addEventListener('click', stopCam);
+$('#btnPickPhoto').addEventListener('click', function(){ $('#photoFile').click(); });
+$('#btnMobileShot').addEventListener('click', mobileShot);
+$('#photoFile').addEventListener('change', function(e){ handlePhotoFiles(e.target.files); e.target.value=''; });
+$('#photoList').addEventListener('click', function(e){
+  var i = e.target.dataset.delphoto; if (i===undefined) return;
+  state.current.photos.splice(Number(i),1); renderPhotoList(); refreshPreview(); toast('已删除该凭证照片');
+});
+$('#chkIncludePhotos').addEventListener('change', function(e){
+  state.current.includePhotos = e.target.checked; refreshPreview();
+  toast(e.target.checked ? '已勾选：打印 / 导出时包含原始凭证附页' : '已取消：打印 / 导出不含附页');
+});
+$('#judgeSourceSel').addEventListener('change', function(e){
+  state.current.judgeSource = e.target.value;
+  renderForm(); renderList(); renderJudgeResult();
+  toast(e.target.value==='provided'
+    ? (state.current.customItems && state.current.customItems.length ? '已切换：仅按提供的合格限值判定，不引用内置标准值' : '已切换：仅按提供限值判定；当前未导入检测数据，请先粘贴 JSON')
+    : '已切换：按程序内置指标库判定');
+});
+$('#btnImportTemplate').addEventListener('click', function(){
+  $('#importText').value = JSON.stringify(IMPORT_TEMPLATE, null, 2);
+  setImportMsg(IMPORT_HELP);
+});
+$('#btnImportClear').addEventListener('click', function(){ $('#importText').value=''; setImportMsg('已清空导入框。'); });
+$('#btnImportApply').addEventListener('click', applyImport);
+$('#btnImportFile').addEventListener('click', function(){ $('#importFile').click(); });
+$('#importFile').addEventListener('change', function(e){
+  var f = e.target.files && e.target.files[0]; if (!f) return;
+  var fr = new FileReader();
+  fr.onload = function(){ $('#importText').value = String(fr.result||''); applyImport(); };
+  fr.onerror = function(){ setImportMsg('文件读取失败：'+f.name); };
+  fr.readAsText(f, 'utf-8');
+  e.target.value = '';
+});
+$('#btnRefreshJudge').addEventListener('click', function(){ renderJudgeResult(); toast('核查结果已刷新'); });
+$('#btnCopyJudge').addEventListener('click', function(){
+  var box = $('#judgeResult'); box.focus(); box.select();
+  try { document.execCommand('copy'); toast('已复制核查结果'); }
+  catch(e) { toast('自动复制失败，请手动全选复制'); }
+});
+
+/* ============ 十、初始化 ============ */
+(function init(){
+  state.reports = loadReports();
+  $('#fGrade').innerHTML = '<option value="">全部牌号</option>' + GRADE_KEYS.map(function(g){ return '<option value="'+g+'">'+g+'</option>'; }).join('');
+  if (state.reports.length) { state.current = clone(state.reports[0]); state.isSample = false; }
+  else { state.current = createSampleReport(); state.isSample = true; }
+  $('#reportPaper').style.zoom = 0.88;
+  renderForm();
+  renderList();
+})();
+</script>
+
+<style>
+@page { size: A4; margin: 0; }
+@media print {
+  html, body { height: auto; background: #fff; }
+  .no-print, .topbar, .sidebar, .form-panel, .preview-tools, #toast, .modal-mask, #photoFile, #restoreFile, #importFile { display: none !important; }
+  .app, .body { display: block; height: auto; }
+  .preview-panel { display: block; overflow: visible; padding: 0; background: #fff; }
+  #reportPaper { zoom: 1 !important; box-shadow: none; width: 210mm; min-height: 297mm; margin: 0; padding: 9mm 8mm 7mm; }
+}
+</style>
+</body>
+</html>
